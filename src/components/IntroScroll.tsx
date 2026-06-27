@@ -184,52 +184,54 @@ export function ScrollArtwork({
           },
         ]}
       >
-        <LinearGradient
-          colors={["#c9ad70", "#ead9af", "#f4e8c5", "#ddc38a"]}
-          locations={[0, 0.12, 0.78, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.paperInnerBorder} />
-        <View style={styles.paperFiberA} />
-        <View style={styles.paperFiberB} />
+        <View style={[styles.paperFullContent, { height: paperHeight }]}>
+          <LinearGradient
+            colors={["#c9ad70", "#ead9af", "#f4e8c5", "#ddc38a"]}
+            locations={[0, 0.12, 0.78, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.paperInnerBorder} />
+          <View style={styles.paperFiberA} />
+          <View style={styles.paperFiberB} />
 
-        <View style={styles.topSilk}><SilkBand width={paperWidth - 2} /></View>
-        <View style={styles.bottomSilk}><SilkBand width={paperWidth - 2} lower /></View>
+          <View style={styles.topSilk}><SilkBand width={paperWidth - 2} /></View>
+          <View style={styles.bottomSilk}><SilkBand width={paperWidth - 2} lower /></View>
 
-        <View style={[styles.calligraphyArea, { top: 46, height: paperHeight - 92 }]}>
-          <View style={styles.calligraphyColumns}>
-            {calligraphy.columns.map((column, columnIndex) => (
-              <View key={columnIndex} style={[styles.calligraphyColumn, compact && styles.calligraphyColumnCompact]}>
-                {column.map((character, characterIndex) => (
-                  <Text
-                    key={`${columnIndex}-${characterIndex}`}
-                    style={[styles.calligraphyCharacter, compact && styles.calligraphyCharacterCompact]}
-                  >
-                    {character}
-                  </Text>
-                ))}
-              </View>
-            ))}
+          <View style={[styles.calligraphyArea, { top: 46, height: paperHeight - 92 }]}>
+            <View style={styles.calligraphyColumns}>
+              {calligraphy.columns.map((column, columnIndex) => (
+                <View key={columnIndex} style={[styles.calligraphyColumn, compact && styles.calligraphyColumnCompact]}>
+                  {column.map((character, characterIndex) => (
+                    <Text
+                      key={`${columnIndex}-${characterIndex}`}
+                      style={[styles.calligraphyCharacter, compact && styles.calligraphyCharacterCompact]}
+                    >
+                      {character}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
 
-        <Animated.View
-          style={[
-            styles.seal,
-            compact && styles.sealCompact,
-            {
-              opacity: sealAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 0.82] }),
-              transform: [
-                { rotate: "-5deg" },
-                { scale: sealAnimation.interpolate({ inputRange: [0, 1], outputRange: [1.8, 1] }) },
-              ],
-            },
-          ]}
-        >
-          <Text style={[styles.sealText, compact && styles.sealTextCompact]}>훈{"\n"}민</Text>
-        </Animated.View>
+          <Animated.View
+            style={[
+              styles.seal,
+              compact && styles.sealCompact,
+              {
+                opacity: sealAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 0.82] }),
+                transform: [
+                  { rotate: "-5deg" },
+                  { scale: sealAnimation.interpolate({ inputRange: [0, 1], outputRange: [1.8, 1] }) },
+                ],
+              },
+            ]}
+          >
+            <Text style={[styles.sealText, compact && styles.sealTextCompact]}>훈{"\n"}민</Text>
+          </Animated.View>
+        </View>
       </Animated.View>
 
       <Animated.View
@@ -315,16 +317,17 @@ const styles = StyleSheet.create({
   rodHandleRight: { borderTopRightRadius: 10, borderBottomRightRadius: 10, marginLeft: -3 },
   rodCap: { position: "absolute", top: 8, borderWidth: 1, borderColor: "#432712" },
   paper: { position: "absolute", overflow: "hidden", borderLeftWidth: 1, borderRightWidth: 1, borderColor: "rgba(90,57,23,0.34)", zIndex: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.24, shadowRadius: 12, elevation: 4 },
+  paperFullContent: { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
   paperInnerBorder: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, margin: 5, borderWidth: 1, borderColor: "rgba(111,76,31,0.15)" },
   paperFiberA: { position: "absolute", top: 0, bottom: 0, left: "18%", width: 1, backgroundColor: "rgba(88,56,21,0.08)" },
   paperFiberB: { position: "absolute", top: 0, bottom: 0, right: "24%", width: 1, backgroundColor: "rgba(88,56,21,0.06)" },
-  topSilk: { position: "absolute", top: 1, left: 0 },
-  bottomSilk: { position: "absolute", bottom: 1, left: 0 },
+  topSilk: { position: "absolute", top: 1, left: 0, zIndex: 6 },
+  bottomSilk: { position: "absolute", bottom: 1, left: 0, zIndex: 6 },
   silkBand: { height: 38, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "rgba(220,190,126,0.58)", overflow: "hidden", justifyContent: "center" },
   silkLine: { position: "absolute", left: 8, right: 8, top: 3, height: 1, backgroundColor: "rgba(238,207,142,0.55)" },
   silkMotifs: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingHorizontal: 10 },
   silkDiamond: { width: 10, height: 10, borderWidth: 1, borderColor: "#e0bd72", backgroundColor: "rgba(225,188,111,0.2)", transform: [{ rotate: "45deg" }] },
-  calligraphyArea: { position: "absolute", left: 14, right: 14, alignItems: "center", justifyContent: "center" },
+  calligraphyArea: { position: "absolute", left: 14, right: 14, zIndex: 4, alignItems: "center", justifyContent: "center" },
   calligraphyColumns: { flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "center" },
   calligraphyColumn: { width: 18, alignItems: "center" },
   calligraphyColumnCompact: { width: 13 },

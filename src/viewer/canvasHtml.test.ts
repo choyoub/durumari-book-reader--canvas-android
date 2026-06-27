@@ -52,6 +52,8 @@ describe("canvasHtml", () => {
     expect(script).toBeDefined();
     expect(() => new Function(script!)).not.toThrow();
     expect(html).toContain("const TURN_DURATION = 380");
+    expect(html).toContain("let paginationRunId = 0");
+    expect(html).toContain("document.fonts?.ready");
     expect(html).toContain("function renderSlide(");
     expect(html).toContain("function renderBook(");
     expect(html).toContain("function drawBookSheet(");

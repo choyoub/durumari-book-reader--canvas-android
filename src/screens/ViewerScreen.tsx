@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { BackHandler, DeviceEventEmitter, Modal, NativeModules, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, BackHandler, DeviceEventEmitter, Modal, NativeModules, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 
 import { CanvasReader } from "../components/CanvasReader";
@@ -8,7 +8,7 @@ import { SettingsModal } from "../components/SettingsModal";
 import { ThemedScreen } from "../components/ThemedScreen";
 import { useAppContext } from "../contexts/AppContext";
 import { DocumentRecord } from "../types";
-import { themeTokens } from "../lib/settings";
+import { defaultSettings, themeTokens } from "../lib/settings";
 import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, saveSettings } from "../lib/store";
 import { hydrateDocumentFromBytes } from "../lib/documentImport";
 import { readSafBytes } from "../lib/safImport";
@@ -73,6 +73,10 @@ function ViewerMenuModal({
               <Text style={styles.viewerActionIcon}>🧭</Text>
               <Text style={{ color: theme.text }}>이동</Text>
             </Pressable>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onEncodingChange} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>🔤</Text>
+              <Text style={{ color: theme.text }}>인코딩</Text>
+            </Pressable>
             <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onSettings} accessibilityRole="button">
               <Text style={styles.viewerActionIcon}>⚙️</Text>
               <Text style={{ color: theme.text }}>설정</Text>
@@ -80,10 +84,6 @@ function ViewerMenuModal({
             <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onExit} accessibilityRole="button">
               <Text style={styles.viewerActionIcon}>📚</Text>
               <Text style={{ color: theme.text }}>목록</Text>
-            </Pressable>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onEncodingChange} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>🔤</Text>
-              <Text style={{ color: theme.text }}>인코딩</Text>
             </Pressable>
           </View>
         </View>
@@ -210,6 +210,8 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
 
 // ----------------- Main Viewer Screen -----------------
 
+type ViewerModal = "menu" | "encoding" | "toc" | "pageNavigator" | "settings";
+
 export function ViewerScreen() {
   const {
     settings,
@@ -229,16 +231,13 @@ export function ViewerScreen() {
     message: "전체 페이지를 계산하는 중...",
   });
   const [viewerReady, setViewerReady] = useState(false);
-  const [viewerAnimationComplete, setViewerAnimationComplete] = useState(false);
+  const viewerHasLoadedRef = useRef(false);
   
   const activeReading = activeDocument ? readingsById.get(activeDocument.documentId) : null;
   const initialPage = activeReading?.lastPage || 1;
   const [viewerPage, setViewerPage] = useState({ current: initialPage, total: 1, offset: 0 });
   const [bookmarkSignal, setBookmarkSignal] = useState(0);
-  const [pageNavigatorOpen, setPageNavigatorOpen] = useState(false);
-  const [viewerMenuOpen, setViewerMenuOpen] = useState(false);
-  const [tocModalOpen, setTocModalOpen] = useState(false);
-  const [encodingModalOpen, setEncodingModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<ViewerModal | null>(null);
   const [pageDraft, setPageDraft] = useState("1");
   const [pageRequest, setPageRequest] = useState<{ signal: number; page: number }>({ signal: 0, page: 1 });
   const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
@@ -247,41 +246,36 @@ export function ViewerScreen() {
 
 
   // Settings Modal state
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftSettings, setDraftSettings] = useState(settings);
 
-  useEffect(() => {
-    if (!viewerReady || !viewerAnimationComplete) return;
-    setViewerLoading((previous) => (
-      previous.error
-        ? previous
-        : { ...previous, active: false, progress: 1, message: "준비 완료" }
-    ));
-  }, [viewerAnimationComplete, viewerReady]);
+  const closeTopViewerLayer = useCallback(() => {
+    if (activeModal) {
+      setActiveModal(null);
+    } else {
+      setActiveDocument(null);
+    }
+    return true;
+  }, [activeModal, setActiveDocument]);
+
+  const openViewerModal = useCallback((modal: ViewerModal) => {
+    setActiveModal(null);
+    requestAnimationFrame(() => setActiveModal(modal));
+  }, []);
 
   useEffect(() => {
-    const handleBack = () => {
-      if (encodingModalOpen) setEncodingModalOpen(false);
-      else if (tocModalOpen) setTocModalOpen(false);
-      else if (pageNavigatorOpen) setPageNavigatorOpen(false);
-      else if (settingsOpen) setSettingsOpen(false);
-      else if (viewerMenuOpen) setViewerMenuOpen(false);
-      else setActiveDocument(null);
-      return true;
-    };
-
-    const backSub = BackHandler.addEventListener("hardwareBackPress", handleBack);
+    const backSub = BackHandler.addEventListener("hardwareBackPress", closeTopViewerLayer);
 
     return () => {
       backSub.remove();
     };
-  }, [encodingModalOpen, pageNavigatorOpen, setActiveDocument, settingsOpen, tocModalOpen, viewerMenuOpen]);
+  }, [closeTopViewerLayer]);
 
   useEffect(() => {
     const document = activeDocument;
     if (!document || document.text !== undefined) return;
 
     let cancelled = false;
+    viewerHasLoadedRef.current = false;
     setViewerReady(false);
     setViewerLoading({ active: true, progress: 0, message: "본문을 불러오는 중..." });
     void loadViewerDocument(document)
@@ -370,10 +364,9 @@ export function ViewerScreen() {
 
   async function changeEncoding(encoding: string) {
     if (!activeDocument) return;
-    setEncodingModalOpen(false);
-    setViewerMenuOpen(false);
+    setActiveModal(null);
+    viewerHasLoadedRef.current = false;
     setViewerReady(false);
-    setViewerAnimationComplete(false);
     setViewerLoading({ active: true, progress: 0, message: "새로운 인코딩으로 문서를 불러오는 중..." });
     try {
       const newDoc = await loadViewerDocument(activeDocument, encoding);
@@ -385,9 +378,19 @@ export function ViewerScreen() {
   }
 
   async function confirmSettings() {
-    await saveSettings(draftSettings);
     setSettings(draftSettings);
-    setSettingsOpen(false);
+    await saveSettings(draftSettings);
+    setActiveModal(null);
+  }
+
+  function askResetSettings() {
+    Alert.alert("설정 초기화", "뷰어와 목록 설정만 기본값으로 되돌릴까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "초기화",
+        onPress: () => setDraftSettings(defaultSettings),
+      },
+    ]);
   }
 
   if (!activeDocument) return null;
@@ -402,11 +405,12 @@ export function ViewerScreen() {
             initialPage={initialPage}
             bookmarks={bookmarks}
             onReady={(currentPage, totalPages, offset) => {
+              viewerHasLoadedRef.current = true;
               setViewerPage({ current: currentPage, total: totalPages, offset: offset || 0 });
               setViewerReady(true);
               setViewerLoading((previous) => ({
                 ...previous,
-                active: true,
+                active: false,
                 progress: 1,
                 message: "준비 완료",
                 error: undefined,
@@ -414,10 +418,11 @@ export function ViewerScreen() {
             }}
             onPageChanged={onPageChanged}
             onBookmarkChanged={onBookmarkChanged}
-            onMenuRequested={() => setViewerMenuOpen(true)}
+            onMenuRequested={() => setActiveModal("menu")}
+            onBackRequested={closeTopViewerLayer}
             onLoadingProgress={(payload) => setViewerLoading((previous) => ({
               ...previous,
-              active: !(viewerReady && viewerAnimationComplete),
+              active: !viewerHasLoadedRef.current,
               progress: payload.progress,
               message: payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`,
               error: undefined,
@@ -438,10 +443,9 @@ export function ViewerScreen() {
             progress={viewerLoading.progress}
             message={viewerLoading.message}
             error={viewerLoading.error}
-            onAnimationComplete={() => setViewerAnimationComplete(true)}
             onRetry={() => {
+              viewerHasLoadedRef.current = false;
               setViewerReady(false);
-              setViewerAnimationComplete(false);
               setViewerLoading({ active: true, progress: 0, message: "다시 불러오는 중..." });
               setLoadAttempt((attempt) => attempt + 1);
             }}
@@ -449,46 +453,42 @@ export function ViewerScreen() {
           />
         ) : null}
 
-        {viewerMenuOpen && (
+        {activeModal === "menu" && (
           <ViewerMenuModal
-            visible={viewerMenuOpen}
+            visible
             title={activeDocument.title}
             current={viewerPage.current}
             total={viewerPage.total}
             theme={theme}
-            onClose={() => setViewerMenuOpen(false)}
+            onClose={closeTopViewerLayer}
             onBookmark={() => {
-              setViewerMenuOpen(false);
+              setActiveModal(null);
               setBookmarkSignal((value) => value + 1);
             }}
             onNavigate={() => {
-              setViewerMenuOpen(false);
               setPageDraft(String(viewerPage.current));
-              setPageNavigatorOpen(true);
+              openViewerModal("pageNavigator");
             }}
             onSettings={() => {
-              setViewerMenuOpen(false);
               setDraftSettings(settings);
-              setSettingsOpen(true);
+              openViewerModal("settings");
             }}
             onExit={() => {
+              setActiveModal(null);
               setActiveDocument(null);
-              setViewerMenuOpen(false);
             }}
             hasToc={!!activeDocument.toc?.length}
             onToc={() => {
-              setViewerMenuOpen(false);
-              setTocModalOpen(true);
+              openViewerModal("toc");
             }}
             onEncodingChange={() => {
-              setViewerMenuOpen(false);
-              setEncodingModalOpen(true);
+              openViewerModal("encoding");
             }}
           />
         )}
 
-        {encodingModalOpen && (
-          <Modal visible={encodingModalOpen} transparent animationType="fade" onRequestClose={() => setEncodingModalOpen(false)}>
+        {activeModal === "encoding" && (
+          <Modal visible transparent animationType="fade" onRequestClose={closeTopViewerLayer}>
             <View style={styles.centerBackdrop}>
               <View style={{ padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
                 <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16 }}>인코딩 다시 선택</Text>
@@ -499,7 +499,7 @@ export function ViewerScreen() {
                     </Pressable>
                   ))}
                 </View>
-                <Pressable style={[styles.popupButton, { borderColor: theme.border, marginTop: 16, backgroundColor: theme.outer, alignItems: "center" }]} onPress={() => setEncodingModalOpen(false)}>
+                <Pressable style={[styles.popupButton, { borderColor: theme.border, marginTop: 16, backgroundColor: theme.outer, alignItems: "center" }]} onPress={closeTopViewerLayer}>
                   <Text style={{ color: theme.text }}>취소</Text>
                 </Pressable>
               </View>
@@ -507,45 +507,45 @@ export function ViewerScreen() {
           </Modal>
         )}
 
-        {tocModalOpen && (
+        {activeModal === "toc" && (
           <TocModal
-            visible={tocModalOpen}
+            visible
             toc={activeDocument.toc}
             theme={theme}
-            onClose={() => setTocModalOpen(false)}
+            onClose={closeTopViewerLayer}
             onSelect={(offset: number) => {
-              setTocModalOpen(false);
+              setActiveModal(null);
               setOffsetRequest({ signal: Date.now(), offset });
             }}
           />
         )}
 
-        {pageNavigatorOpen && (
+        {activeModal === "pageNavigator" && (
           <PageNavigatorModal
-            visible={pageNavigatorOpen}
+            visible
             current={viewerPage.current}
             total={viewerPage.total}
             value={pageDraft}
             theme={theme}
             bookmarks={bookmarks.filter((item) => item.documentId === activeDocument.documentId)}
             onChange={setPageDraft}
-            onClose={() => setPageNavigatorOpen(false)}
+            onClose={closeTopViewerLayer}
             onGo={(page: number) => {
-              setPageNavigatorOpen(false);
+              setActiveModal(null);
               setPageRequest({ signal: Date.now(), page });
             }}
           />
         )}
 
-        {settingsOpen && (
+        {activeModal === "settings" && (
           <SettingsModal
-            visible={settingsOpen}
+            visible
             settings={draftSettings}
-            theme={themeTokens[draftSettings.theme]}
+            theme={theme}
             onChange={setDraftSettings}
-            onClose={() => setSettingsOpen(false)}
+            onClose={closeTopViewerLayer}
             onConfirm={confirmSettings}
-            onReset={() => {}} 
+            onReset={askResetSettings}
             onClearFolders={() => {}} 
           />
         )}
@@ -569,9 +569,9 @@ const styles = StyleSheet.create({
   viewerAction: { width: "31%", height: 88, borderWidth: 1, borderRadius: 8, alignItems: "center", justifyContent: "center", gap: 7 },
   viewerActionIcon: { fontSize: 23 },
   popupButton: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderRadius: 8 },
-  viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", paddingHorizontal: 24, paddingVertical: 20 },
-  viewerLoadingArtwork: { flex: 1, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center" },
-  viewerLoadingFooter: { width: "76%", maxWidth: 300, alignItems: "center", paddingBottom: 12 },
+  viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 24, paddingTop: 10, paddingBottom: 20 },
+  viewerLoadingArtwork: { width: "100%", height: "58%", maxHeight: 450, alignItems: "center", justifyContent: "center" },
+  viewerLoadingFooter: { width: "76%", maxWidth: 300, alignItems: "center", marginTop: -8 },
   viewerLoadingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 16 },
   viewerLoadingTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
   viewerLoadingFill: { height: "100%", borderRadius: 2 },

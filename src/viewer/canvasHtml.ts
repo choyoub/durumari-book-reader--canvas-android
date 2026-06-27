@@ -52,6 +52,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     let suppressClickUntil = 0;
     let isAnimating = false;
     let animationFrame = null;
+    let paginationRunId = 0;
     const pageSurfaces = new Map();
     const FOOTER_HEIGHT = 44;
     const TURN_DURATION = 380;
@@ -78,9 +79,18 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       return fontSize * ratio * (bold ? 1.035 : 1) + letterSpacing;
     }
 
+    async function waitForRenderPrerequisites(runId) {
+      try {
+        if (document.fonts?.ready) await document.fonts.ready;
+      } catch {}
+      return !disposed && runId === paginationRunId;
+    }
+
     async function paginateInline() {
+      const runId = ++paginationRunId;
       try {
         post("loadingProgress", { progress: 0, message: "전체 페이지를 계산하는 중..." });
+        if (!(await waitForRenderPrerequisites(runId))) return;
         const dpr = window.devicePixelRatio || 1;
         const width = Math.max(160, Math.floor(canvas.width / dpr) - settings.paddingLeft - settings.paddingRight);
         const height = Math.max(160, Math.floor(canvas.height / dpr) - settings.paddingTop - settings.paddingBottom - FOOTER_HEIGHT);
@@ -90,10 +100,11 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         let lineWidth = 0;
         const text = documentData.text || "";
         for (let index = 0; index < text.length; index++) {
-          if (disposed) return;
+          if (disposed || runId !== paginationRunId) return;
           if (index > 0 && index % 50000 === 0) {
             post("loadingProgress", { progress: Math.min(.95, index / Math.max(1, text.length)) });
             await new Promise(resolve => setTimeout(resolve, 0));
+            if (disposed || runId !== paginationRunId) return;
           }
           const code = text.charCodeAt(index);
           if (code === 13) continue;
@@ -117,6 +128,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
           }
           lineWidth += widthValue;
         }
+        if (runId !== paginationRunId) return;
         if (nextStarts[nextStarts.length - 1] !== text.length) nextStarts.push(text.length);
         starts = nextStarts;
         if (targetOffset !== null) {
@@ -162,6 +174,18 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       pageSurfaces.clear();
       void paginateInline();
+    }
+
+    function paginationSettingsChanged(previous, next) {
+      return previous.fontFamily !== next.fontFamily
+        || previous.fontSize !== next.fontSize
+        || previous.isBold !== next.isBold
+        || previous.lineHeight !== next.lineHeight
+        || previous.letterSpacing !== next.letterSpacing
+        || previous.paddingTop !== next.paddingTop
+        || previous.paddingBottom !== next.paddingBottom
+        || previous.paddingLeft !== next.paddingLeft
+        || previous.paddingRight !== next.paddingRight;
     }
 
     function pageLines(text, width) {
@@ -584,10 +608,16 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       }
       if (message.type === "updateSettings") {
         if (isAnimating) return;
-        targetOffset = starts[page - 1] || 0;
-        settings = message.payload;
+        const nextSettings = message.payload;
+        const needsPagination = paginationSettingsChanged(settings, nextSettings);
+        settings = nextSettings;
         pageSurfaces.clear();
-        void paginateInline();
+        if (needsPagination) {
+          targetOffset = starts[page - 1] || 0;
+          void paginateInline();
+        } else {
+          render();
+        }
       }
       if (message.type === "goToPage") goToPage(message.payload.page, message.requestId);
       if (message.type === "goToOffset") goToOffset(message.payload.offset, message.requestId);
@@ -654,7 +684,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       if (isAnimating) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        requestMenu("escape");
+        post("backRequested", { source: "escape", currentPage: page, totalPages: totalPages(), progress: progress(), preview: previewText() });
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         go(1, "horizontal");

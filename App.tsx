@@ -12,9 +12,9 @@ import { MainTabPager } from "./src/components/MainTabPager";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { ThemedScreen } from "./src/components/ThemedScreen";
 import { ViewerScreen } from "./src/screens/ViewerScreen";
-import { themeTokens } from "./src/lib/settings";
+import { defaultSettings, themeTokens } from "./src/lib/settings";
 import { subscribeForegroundRescan } from "./src/lib/safImport";
-import { clearFolders, initStore, loadSettings, resetSettings, saveSettings } from "./src/lib/store";
+import { clearFolders, initStore, loadSettings, saveSettings } from "./src/lib/store";
 
 const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
 
@@ -181,8 +181,8 @@ function AppContent() {
   }, [activeDocument, settingsOpen, tab]);
 
   async function confirmSettings() {
-    await saveSettings(draftSettings);
     setSettings(draftSettings);
+    await saveSettings(draftSettings);
     setSettingsOpen(false);
   }
 
@@ -192,10 +192,7 @@ function AppContent() {
       {
         text: "초기화",
         onPress: () => {
-          void resetSettings().then((next) => {
-            setDraftSettings(next);
-            setSettings(next);
-          });
+          setDraftSettings(defaultSettings);
         },
       },
     ]);
@@ -275,7 +272,7 @@ function AppContent() {
           <SettingsModal
             visible={settingsOpen}
             settings={draftSettings}
-            theme={themeTokens[draftSettings.theme]}
+            theme={theme}
             onChange={setDraftSettings}
             onClose={() => setSettingsOpen(false)}
             onConfirm={confirmSettings}

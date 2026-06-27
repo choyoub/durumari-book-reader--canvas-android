@@ -3,6 +3,7 @@ import { useAssets } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { BookmarkRecord, DocumentRecord, ReaderSettings } from "../types";
+import { nativeFontFamily } from "../lib/settings";
 import { createCanvasHtml } from "../viewer/canvasHtml";
 
 const VIEWER_FONT_ASSETS = [
@@ -41,6 +42,7 @@ interface Props {
     preview: string;
   }) => void;
   onMenuRequested?: () => void;
+  onBackRequested?: () => void;
   onLoadingProgress?: (payload: { progress: number; message?: string }) => void;
   bookmarkSignal?: number;
   pageRequest?: { signal: number; page: number };
@@ -57,6 +59,7 @@ export function CanvasReader({
   onPageChanged,
   onBookmarkChanged,
   onMenuRequested,
+  onBackRequested,
   onLoadingProgress,
   bookmarkSignal = 0,
   pageRequest,
@@ -64,15 +67,15 @@ export function CanvasReader({
   onError,
 }: Props) {
   const webViewRef = useRef<WebView>(null);
-  const [fontAssets, fontAssetError] = useAssets(VIEWER_FONT_ASSETS.map(([, module]) => module));
+  const selectedFontAsset = useMemo(() => {
+    const selectedFont = nativeFontFamily(settings.fontFamily);
+    return VIEWER_FONT_ASSETS.find(([name]) => name === selectedFont) ?? VIEWER_FONT_ASSETS[0];
+  }, [settings.fontFamily]);
+  const [fontAssets, fontAssetError] = useAssets([selectedFontAsset[1]]);
   const fontUris = useMemo(() => {
-    if (!fontAssets) return undefined;
-    return VIEWER_FONT_ASSETS.reduce<Record<string, string>>((result, [name], index) => {
-      const uri = fontAssets[index]?.localUri ?? fontAssets[index]?.uri;
-      if (uri) result[name] = uri;
-      return result;
-    }, {});
-  }, [fontAssets]);
+    const uri = fontAssets?.[0]?.localUri ?? fontAssets?.[0]?.uri;
+    return uri ? { [selectedFontAsset[0]]: uri } : undefined;
+  }, [fontAssets, selectedFontAsset]);
   const html = useMemo(
     () => createCanvasHtml({
       documentId: document.documentId,
@@ -136,6 +139,7 @@ export function CanvasReader({
       if (message.type === "pageChanged") onPageChanged(message.payload);
       if (message.type === "bookmarkChanged") onBookmarkChanged(message.payload);
       if (message.type === "menuRequested") onMenuRequested?.();
+      if (message.type === "backRequested") onBackRequested?.();
       if (message.type === "loadingProgress") onLoadingProgress?.(message.payload);
       if (message.type === "error") onError?.(message.payload);
     } catch {

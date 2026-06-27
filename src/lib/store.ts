@@ -175,13 +175,34 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
       folder.lastSyncedAt ?? null,
       folder.permissionStatus,
     );
-    const existing = await transaction.getAllAsync<{ documentId: string; contentHash: string }>(
-      "SELECT documentId, contentHash FROM documents WHERE folderId = ?",
+    const existing = await transaction.getAllAsync<{
+      documentId: string;
+      contentHash: string;
+      sourceUri: string;
+      title: string;
+      kind: string;
+      fileSize: number;
+      modifiedAt: number;
+    }>(
+      "SELECT documentId, contentHash, sourceUri, title, kind, fileSize, modifiedAt FROM documents WHERE folderId = ?",
       folder.folderId,
     );
     const nextIds = new Set(documents.map((document) => document.documentId));
     const existingIds = new Set(existing.map((document) => document.documentId));
+    const existingById = new Map(existing.map((document) => [document.documentId, document]));
     for (const document of documents) {
+      const current = existingById.get(document.documentId);
+      if (
+        current
+        && current.contentHash === document.contentHash
+        && current.sourceUri === document.sourceUri
+        && current.title === document.title
+        && current.kind === document.kind
+        && current.modifiedAt === document.modifiedAt
+        && (document.fileSize <= 0 || current.fileSize === document.fileSize)
+      ) {
+        continue;
+      }
       await transaction.runAsync(
         `INSERT INTO documents
           (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc)
@@ -210,17 +231,40 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         document.toc ? JSON.stringify(document.toc) : null,
       );
     }
+    const existingByHash = new Map<string, typeof existing>();
+    for (const item of existing) {
+      const bucket = existingByHash.get(item.contentHash);
+      if (bucket) bucket.push(item);
+      else existingByHash.set(item.contentHash, [item]);
+    }
+
     const migratedOldIds = new Set<string>();
     const usedHashes = new Set<string>();
     for (const document of documents) {
       if (existingIds.has(document.documentId) || usedHashes.has(document.contentHash)) continue;
-      const match = existing.find((item) => (
+      const match = existingByHash.get(document.contentHash)?.find((item) => (
         item.contentHash === document.contentHash
         && item.documentId !== document.documentId
         && !nextIds.has(item.documentId)
         && !migratedOldIds.has(item.documentId)
       ));
       if (!match) continue;
+      await transaction.runAsync(
+        `UPDATE documents
+          SET text = COALESCE(documents.text, (SELECT text FROM documents WHERE documentId = ?)),
+              toc = COALESCE(documents.toc, (SELECT toc FROM documents WHERE documentId = ?)),
+              modifiedAt = ?,
+              fileSize = CASE
+                WHEN documents.fileSize > 0 THEN documents.fileSize
+                ELSE COALESCE((SELECT fileSize FROM documents WHERE documentId = ?), documents.fileSize)
+              END
+          WHERE documentId = ?`,
+        match.documentId,
+        match.documentId,
+        document.modifiedAt,
+        match.documentId,
+        document.documentId,
+      );
       await transaction.runAsync("UPDATE readings SET documentId = ? WHERE documentId = ?", document.documentId, match.documentId);
       await transaction.runAsync("UPDATE bookmarks SET documentId = ? WHERE documentId = ?", document.documentId, match.documentId);
       await transaction.runAsync("DELETE FROM documents WHERE documentId = ?", match.documentId);

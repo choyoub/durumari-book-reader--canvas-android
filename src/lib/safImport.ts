@@ -75,6 +75,28 @@ function hashFromUri(uri: string, name: string): string {
   return `uri-${(hash >>> 0).toString(16)}`;
 }
 
+function normalizeModifiedAt(value?: number) {
+  if (!value) return undefined;
+  return value < 10000000000
+    ? Math.round(value * 1000)
+    : Math.round(value);
+}
+
+async function readFileMetadata(uri: string, fallbackModifiedAt: number) {
+  let fileSize = 0;
+  let modifiedAt = fallbackModifiedAt;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists) {
+      fileSize = info.size ?? 0;
+      modifiedAt = normalizeModifiedAt(info.modificationTime) ?? modifiedAt;
+    }
+  } catch {
+    // Some SAF providers omit file metadata. Keep scanning with a stable fallback date.
+  }
+  return { fileSize, modifiedAt };
+}
+
 /**
  * Lightweight folder scan: only collects file metadata (URI, name, kind)
  * WITHOUT reading file contents. This prevents OOM for large folders.
@@ -91,41 +113,28 @@ async function scanSafFolder(
   const documents: DocumentRecord[] = [];
   onProgress?.(0, files.length);
 
+  const fallbackModifiedAt = folder.lastSyncedAt ?? folder.createdAt;
   const batchSize = 15;
   for (let i = 0; i < files.length; i += batchSize) {
     const batch = files.slice(i, i + batchSize);
-    await Promise.all(
-      batch.map(async (file) => {
-        const kind = extension(file.name)!;
-        const contentHash = hashFromUri(file.uri, file.name);
-        let fileSize = 0;
-        let modifiedAt = folder.lastSyncedAt ?? folder.createdAt;
-        try {
-          const info = await FileSystem.getInfoAsync(file.uri);
-          if (info.exists) {
-            fileSize = info.size ?? 0;
-            if (info.modificationTime) {
-              modifiedAt = info.modificationTime < 10000000000
-                ? Math.round(info.modificationTime * 1000)
-                : Math.round(info.modificationTime);
-            }
-          }
-        } catch {
-          // Some SAF providers omit metadata. Keep the last known folder timestamp.
-        }
-        documents.push({
-          documentId: `${folder.folderId}:${file.name}:${fileSize}:${contentHash}`,
-          folderId: folder.folderId,
-          sourceUri: file.uri,
-          title: stripExtension(file.name),
-          kind,
-          fileSize,
-          modifiedAt,
-          contentHash,
-        });
-      })
-    );
+    const batchDocuments = await Promise.all(batch.map(async (file) => {
+      const kind = extension(file.name)!;
+      const contentHash = hashFromUri(file.uri, file.name);
+      const metadata = await readFileMetadata(file.uri, fallbackModifiedAt);
+      return {
+        documentId: `${folder.folderId}:${file.name}:${contentHash}`,
+        folderId: folder.folderId,
+        sourceUri: file.uri,
+        title: stripExtension(file.name),
+        kind,
+        fileSize: metadata.fileSize,
+        modifiedAt: metadata.modifiedAt,
+        contentHash,
+      };
+    }));
+    documents.push(...batchDocuments);
     onProgress?.(Math.min(files.length, i + batch.length), files.length);
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return documents;
 }
