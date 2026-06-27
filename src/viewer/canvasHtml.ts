@@ -23,8 +23,9 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <style>
     ${fontFaces}
-    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#f2ead3; }
-    canvas { display:block; width:100%; height:100%; touch-action:none; background:#f2ead3; }
+    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#f2ead3; outline:none; }
+    *:focus { outline:none !important; }
+    canvas { display:block; width:100%; height:100%; touch-action:none; background:#f2ead3; outline:none; -webkit-tap-highlight-color:transparent; }
     #toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:80vw; padding:8px 12px; border-radius:6px; color:#fff; background:rgba(0,0,0,.68); font:13px sans-serif; opacity:0; transition:opacity .16s; pointer-events:none; }
     #dogear { position:fixed; top:0; right:0; width:48px; height:48px; pointer-events:none; display:none; filter:drop-shadow(-2px 3px 3px rgba(0,0,0,.24)); }
   </style>

@@ -15,6 +15,17 @@ const THEME_OPTIONS: { value: ThemeName; label: string; mark: string }[] = [
   { value: "chalk", label: "칠판", mark: "▣" },
 ];
 
+const PAGE_TURN_OPTIONS: {
+  key: "pageTurnTouch" | "pageTurnSwipe" | "volumeKeyPaging";
+  label: string;
+  mark: string;
+  sample: "tap" | "swipe" | "volume";
+}[] = [
+  { key: "pageTurnTouch", label: "터치", mark: "👆", sample: "tap" },
+  { key: "pageTurnSwipe", label: "스와이프", mark: "↔️", sample: "swipe" },
+  { key: "volumeKeyPaging", label: "볼륨키", mark: "🔊", sample: "volume" },
+];
+
 function SettingTitle({ text, theme }: { text: string; theme: typeof themeTokens.paper }) {
   return <Text style={[styles.settingTitle, { color: theme.accentText }]}>{text}</Text>;
 }
@@ -175,6 +186,61 @@ function ThemeSegmentField({
   );
 }
 
+function PageTurnMethodField({
+  settings,
+  theme,
+  onToggle,
+}: {
+  settings: ReaderSettings;
+  theme: typeof themeTokens.paper;
+  onToggle: (key: (typeof PAGE_TURN_OPTIONS)[number]["key"]) => void;
+}) {
+  return (
+    <View style={[styles.segmentField, { borderColor: theme.border }]}>
+      <Text style={[styles.label, { color: theme.secondary }]}>조작 방식</Text>
+      <View style={styles.pageTurnCards}>
+        {PAGE_TURN_OPTIONS.map((option) => {
+          const selected = Boolean(settings[option.key]);
+          return (
+            <Pressable
+              key={option.key}
+              onPress={() => onToggle(option.key)}
+              style={[
+                styles.pageTurnCard,
+                {
+                  backgroundColor: selected ? theme.bg : "transparent",
+                  borderColor: selected ? theme.accent : theme.border,
+                  borderWidth: selected ? 2 : 1,
+                },
+              ]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected }}
+            >
+              <View style={styles.pageTurnTitleRow}>
+                <Text style={[styles.pageTurnMark, { color: selected ? theme.accentText : theme.secondary }]}>{option.mark}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.pageTurnLabel, { color: selected ? theme.accentText : theme.text }]}>
+                  {option.label}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.pageTurnCheck,
+                  {
+                    borderColor: selected ? theme.accent : theme.border,
+                    backgroundColor: selected ? theme.accent : "transparent",
+                  },
+                ]}
+              >
+                {selected ? <Text style={[styles.pageTurnCheckText, { color: theme.accentForeground }]}>✓</Text> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function SettingsModal({
   visible,
   inline = false,
@@ -293,18 +359,17 @@ export function SettingsModal({
 
                 <SettingSection theme={theme}>
                   <SettingTitle text="👆 페이지 이동 및 피드백" theme={theme} />
-                  <Pressable onPress={() => patch({ pageTurnTouch: !settings.pageTurnTouch })} style={[styles.checkRow, { borderColor: theme.border }]}>
-                    <Text style={[styles.rowText, { color: theme.text }]}>👆 터치로 페이지 이동</Text>
-                    <CheckboxMark checked={settings.pageTurnTouch} theme={theme} />
-                  </Pressable>
-                  <Pressable onPress={() => patch({ pageTurnSwipe: !settings.pageTurnSwipe })} style={[styles.checkRow, { borderColor: theme.border }]}>
-                    <Text style={[styles.rowText, { color: theme.text }]}>↔️ 스와이프로 페이지 이동</Text>
-                    <CheckboxMark checked={settings.pageTurnSwipe} theme={theme} />
-                  </Pressable>
-                  <Pressable onPress={() => patch({ pageTurnVolume: !settings.volumeKeyPaging, volumeKeyPaging: !settings.volumeKeyPaging })} style={[styles.checkRow, { borderColor: theme.border }]}>
-                    <Text style={[styles.rowText, { color: theme.text }]}>🔊 볼륨키로 페이지 이동</Text>
-                    <CheckboxMark checked={settings.volumeKeyPaging} theme={theme} />
-                  </Pressable>
+                  <PageTurnMethodField
+                    settings={settings}
+                    theme={theme}
+                    onToggle={(key) => {
+                      if (key === "volumeKeyPaging") {
+                        patch({ pageTurnVolume: !settings.volumeKeyPaging, volumeKeyPaging: !settings.volumeKeyPaging });
+                        return;
+                      }
+                      patch({ [key]: !settings[key] });
+                    }}
+                  />
                   <SegmentField
                     label="피드백"
                     values={[["none", "🔕 없음"], ["vibration", "📳 진동"], ["sound", "🔊 소리"]]}
@@ -450,9 +515,9 @@ const styles = StyleSheet.create({
   fontPickerPanel: { maxHeight: "72%", borderWidth: 1, borderRadius: 12, padding: 16 },
   fontPickerOptions: { paddingTop: 4 },
   stepper: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  stepperControls: { width: 148, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  stepperControls: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   stepButton: { width: 38, height: 38, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  stepValue: { width: 60, textAlign: "center", fontVariant: ["tabular-nums"] },
+  stepValue: { width: 84, textAlign: "center", fontVariant: ["tabular-nums"] },
   checkRow: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   checkbox: { width: 26, height: 26, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   checkboxText: { fontSize: 19, lineHeight: 22, fontWeight: "800" },
@@ -472,6 +537,13 @@ const styles = StyleSheet.create({
   themeSampleLine: { height: 2, opacity: 0.65 },
   themeSelectedDot: { position: "absolute", right: 5, bottom: 5, width: 18, height: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   themeSelectedCheck: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  pageTurnCards: { flexDirection: "row", gap: 8 },
+  pageTurnCard: { flex: 1, height: 78, paddingHorizontal: 7, paddingVertical: 9, alignItems: "center", justifyContent: "center", gap: 8, overflow: "hidden" },
+  pageTurnTitleRow: { maxWidth: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  pageTurnMark: { fontSize: 18, lineHeight: 21, textAlign: "center" },
+  pageTurnCheck: { width: 22, height: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  pageTurnCheckText: { fontSize: 14, lineHeight: 17, fontWeight: "900" },
+  pageTurnLabel: { flexShrink: 1, maxWidth: "100%", fontSize: 12, lineHeight: 15, fontWeight: "700", textAlign: "center" },
   dangerRow: { flexDirection: "row", gap: 10, paddingTop: 12, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
   secondaryButton: { flex: 1, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   primaryButton: { height: 48, alignItems: "center", justifyContent: "center" },
