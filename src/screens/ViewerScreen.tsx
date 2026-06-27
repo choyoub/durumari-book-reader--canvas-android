@@ -115,7 +115,7 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
   return (
     <View style={[styles.viewerLoading, { backgroundColor: theme.outer }]}>
       <View style={styles.viewerLoadingArtwork}>
-        <ScrollArtwork compact onAnimationComplete={onAnimationComplete} />
+        <ScrollArtwork onAnimationComplete={onAnimationComplete} />
       </View>
       <View style={styles.viewerLoadingFooter}>
         <Text style={[styles.viewerLoadingTitle, { color: theme.text }]}>문서를 펼치는 중</Text>
@@ -571,9 +571,9 @@ const styles = StyleSheet.create({
   viewerAction: { width: "31%", height: 88, borderWidth: 1, borderRadius: 8, alignItems: "center", justifyContent: "center", gap: 7 },
   viewerActionIcon: { fontSize: 23 },
   popupButton: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderRadius: 8 },
-  viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 24, paddingTop: 10, paddingBottom: 20 },
-  viewerLoadingArtwork: { width: "100%", height: "58%", maxHeight: 450, alignItems: "center", justifyContent: "center" },
-  viewerLoadingFooter: { width: "76%", maxWidth: 300, alignItems: "center", marginTop: -8 },
+  viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 24, paddingTop: 18, paddingBottom: 20 },
+  viewerLoadingArtwork: { flex: 2, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center" },
+  viewerLoadingFooter: { flex: 1, width: "76%", maxWidth: 300, alignItems: "center", justifyContent: "flex-start", paddingTop: 8 },
   viewerLoadingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 16 },
   viewerLoadingTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
   viewerLoadingFill: { height: "100%", borderRadius: 2 },
