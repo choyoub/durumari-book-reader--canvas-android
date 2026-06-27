@@ -16,8 +16,8 @@ describe("resolveActiveFolderId", () => {
 
 describe("themeTokens", () => {
   it("includes the chalk theme with readable accent foreground", () => {
-    expect(themeTokens.chalk.bg).toBe("#1F3F38");
-    expect(themeTokens.chalk.accent).toBe("#D6C58A");
-    expect(themeTokens.chalk.accentForeground).toBe("#1F3F38");
+    expect(themeTokens.chalk.bg).toBe("#183b32");
+    expect(themeTokens.chalk.accent).toBe("#f3c969");
+    expect(themeTokens.chalk.accentForeground).toBe("#183b32");
   });
 });

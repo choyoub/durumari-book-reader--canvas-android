@@ -45,7 +45,7 @@ describe("canvasHtml", () => {
     });
 
     expect(html).toContain('"theme":"chalk"');
-    expect(html).toContain('chalk: { bg:"#1F3F38"');
+    expect(html).toContain('chalk: { bg:"#183b32"');
   });
 
   it("builds a synchronized paper transition engine with valid JavaScript", () => {
