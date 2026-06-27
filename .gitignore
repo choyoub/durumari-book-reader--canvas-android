@@ -30,6 +30,7 @@ yarn-error.*
 dist-build-check/
 *.apk
 *.reconstructed
+/apk
 
 # macOS
 .DS_Store
