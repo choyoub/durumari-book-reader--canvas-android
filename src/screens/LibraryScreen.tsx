@@ -126,7 +126,7 @@ export function LibraryScreen({ search }: { search: string }) {
             );
           })}
           <Pressable style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={onImport} disabled={importing}>
-            <Text style={{ color: theme.accentText, fontWeight: "800" }}>{importing ? "🔄 동기화 중" : "📁 + 폴더"}</Text>
+            <Text style={{ color: theme.accentText, fontWeight: "800" }}>{importing ? "🔄 동기화 중" : "+ 📁"}</Text>
           </Pressable>
         </ScrollView>
       </View>

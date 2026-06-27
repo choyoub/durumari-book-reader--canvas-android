@@ -136,7 +136,7 @@ function ThemeSegmentField({
               style={[
                 styles.themeSegmentItem,
                 {
-                  backgroundColor: optionTheme.card,
+                  backgroundColor: optionTheme.outer,
                   borderColor: selected ? optionTheme.accent : optionTheme.border,
                   borderWidth: selected ? 2 : 1,
                 },
@@ -144,11 +144,19 @@ function ThemeSegmentField({
               accessibilityRole="radio"
               accessibilityState={{ checked: selected }}
             >
-              <View style={[styles.themeAccentStrip, { backgroundColor: optionTheme.accent }]} />
-              <Text style={[styles.themeMark, { color: optionTheme.accentText }]}>{option.mark}</Text>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.themeLabel, { color: optionTheme.text }]}>
-                {option.label}
-              </Text>
+              <View style={[styles.themeSystemBar, styles.themeStatusBar, { backgroundColor: optionTheme.statusBar }]} />
+              <View style={[styles.themePreviewPage, { backgroundColor: optionTheme.bg, borderColor: optionTheme.border }]}>
+                <View style={[styles.themeAccentStrip, { backgroundColor: optionTheme.accent }]} />
+                <Text style={[styles.themeMark, { color: optionTheme.accentText }]}>{option.mark}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.themeLabel, { color: optionTheme.text }]}>
+                  {option.label}
+                </Text>
+                <View style={styles.themeSampleLines}>
+                  <View style={[styles.themeSampleLine, { backgroundColor: optionTheme.text, width: "72%" }]} />
+                  <View style={[styles.themeSampleLine, { backgroundColor: optionTheme.secondary, width: "52%" }]} />
+                </View>
+              </View>
+              <View style={[styles.themeSystemBar, styles.themeNavigationBar, { backgroundColor: optionTheme.navigationBar }]} />
               <View
                 style={[
                   styles.themeSelectedDot,
@@ -449,10 +457,16 @@ const styles = StyleSheet.create({
   segment: { flexDirection: "row", minHeight: 40, gap: 8 },
   segmentItem: { flex: 1, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   themeSegment: { flexDirection: "row", gap: 8 },
-  themeSegmentItem: { flex: 1, minHeight: 78, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, paddingTop: 12, paddingBottom: 8, overflow: "hidden" },
-  themeAccentStrip: { position: "absolute", top: 0, left: 0, right: 0, height: 7 },
-  themeMark: { fontSize: 18, lineHeight: 22, marginBottom: 4 },
-  themeLabel: { maxWidth: "100%", fontSize: 12, fontWeight: "700", textAlign: "center" },
+  themeSegmentItem: { flex: 1, height: 94, alignItems: "stretch", justifyContent: "space-between", paddingHorizontal: 5, paddingVertical: 5, overflow: "hidden" },
+  themeSystemBar: { height: 6 },
+  themeStatusBar: { marginBottom: 4 },
+  themeNavigationBar: { marginTop: 4 },
+  themePreviewPage: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 1, paddingHorizontal: 3, paddingTop: 8, paddingBottom: 5, overflow: "hidden" },
+  themeAccentStrip: { position: "absolute", top: 0, left: 0, right: 0, height: 5 },
+  themeMark: { fontSize: 16, lineHeight: 19, marginBottom: 2 },
+  themeLabel: { maxWidth: "100%", fontSize: 11, lineHeight: 14, fontWeight: "700", textAlign: "center" },
+  themeSampleLines: { width: "100%", alignItems: "center", gap: 3, marginTop: 5 },
+  themeSampleLine: { height: 2, opacity: 0.65 },
   themeSelectedDot: { position: "absolute", right: 5, bottom: 5, width: 18, height: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   themeSelectedCheck: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
   dangerRow: { flexDirection: "row", gap: 10, paddingTop: 12, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
