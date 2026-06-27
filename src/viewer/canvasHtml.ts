@@ -8,6 +8,7 @@ export interface CanvasDocumentPayload {
   bookmarks: number[];
   settings: ReaderSettings;
   fontUris?: Record<string, string>;
+  settingsKey?: string;
 }
 
 export function createCanvasHtml(payload: CanvasDocumentPayload) {
@@ -22,8 +23,8 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <style>
     ${fontFaces}
-    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#f2ead3; }
-    canvas { display:block; width:100vw; height:100vh; touch-action:none; background:#f2ead3; }
+    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#f2ead3; }
+    canvas { display:block; width:100%; height:100%; touch-action:none; background:#f2ead3; }
     #toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:80vw; padding:8px 12px; border-radius:6px; color:#fff; background:rgba(0,0,0,.68); font:13px sans-serif; opacity:0; transition:opacity .16s; pointer-events:none; }
     #dogear { position:fixed; top:0; right:0; width:48px; height:48px; pointer-events:none; display:none; filter:drop-shadow(-2px 3px 3px rgba(0,0,0,.24)); }
   </style>
@@ -39,9 +40,10 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     const toast = document.getElementById("toast");
     const ctx = canvas.getContext("2d");
     const dog = dogear.getContext("2d");
-    const allowedIncoming = new Set(["initializeDocument","updateSettings","goToPage","goToOffset","toggleBookmark","cancelLoading","disposeDocument"]);
+    const allowedIncoming = new Set(["initializeDocument","updateSettings","goToPage","goToOffset","turnPage","toggleBookmark","cancelLoading","disposeDocument"]);
     let documentData = INITIAL;
     let settings = INITIAL.settings;
+    let settingsKey = INITIAL.settingsKey || "";
     let starts = [0, INITIAL.text.length];
     let page = Math.max(1, INITIAL.initialPage || 1);
     let targetOffset = null;
@@ -53,10 +55,19 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     let isAnimating = false;
     let animationFrame = null;
     let paginationRunId = 0;
+    let prewarmTimer = null;
+    let viewportCache = { width: 1, height: 1, dpr: 1 };
     const pageSurfaces = new Map();
     const FOOTER_HEIGHT = 44;
     const TURN_DURATION = 380;
     const BOUNDARY_DURATION = 180;
+    const MAX_RENDER_DPR = 2;
+    const SURFACE_RADIUS = 1;
+    const PAGINATION_YIELD_MS = 12;
+    const measureCanvas = document.createElement("canvas");
+    const measureContext = measureCanvas.getContext("2d");
+    let glyphWidthCacheKey = "";
+    let glyphWidthCache = new Map();
 
     const themes = {
       paper: { bg:"#F2EAD3", text:"#2A2A2A", accent:"#9A5A10", dog:"#BDA66E", crease:"#8E743E" },
@@ -68,43 +79,61 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       window.ReactNativeWebView?.postMessage(JSON.stringify({ version:1, type, requestId: requestId || null, payload }));
     }
 
-    function glyphWidth(code, fontSize, letterSpacing, bold) {
-      let ratio = 1;
-      if (code === 32 || code === 9) ratio = code === 9 ? 1.32 : .33;
-      else if (code < 128) {
-        if ((code >= 65 && code <= 90) || (code >= 48 && code <= 57)) ratio = .6;
-        else if (code >= 97 && code <= 122) ratio = .53;
-        else ratio = .42;
-      } else if (code >= 0x2000 && code <= 0x206f) ratio = .5;
-      return fontSize * ratio * (bold ? 1.035 : 1) + letterSpacing;
+    function textFontSpec() {
+      return (settings.isBold ? "700 " : "400 ") + settings.fontSize + "px " + settings.fontFamily;
+    }
+
+    function resetGlyphWidthCache() {
+      glyphWidthCacheKey = textFontSpec() + "|" + settings.letterSpacing;
+      glyphWidthCache = new Map();
+      measureContext.font = textFontSpec();
+    }
+
+    function glyphWidth(ch) {
+      const cacheKey = textFontSpec() + "|" + settings.letterSpacing;
+      if (glyphWidthCacheKey !== cacheKey) resetGlyphWidthCache();
+      const key = ch === "\\t" ? "    " : ch;
+      const cached = glyphWidthCache.get(key);
+      if (cached !== undefined) return cached;
+      const width = measureContext.measureText(key).width + settings.letterSpacing;
+      glyphWidthCache.set(key, width);
+      return width;
     }
 
     async function waitForRenderPrerequisites(runId) {
       try {
+        const fontSpec = textFontSpec();
+        if (document.fonts?.load) await document.fonts.load(fontSpec);
         if (document.fonts?.ready) await document.fonts.ready;
       } catch {}
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      resetGlyphWidthCache();
       return !disposed && runId === paginationRunId;
     }
 
     async function paginateInline() {
       const runId = ++paginationRunId;
+      cancelPrewarm();
       try {
         post("loadingProgress", { progress: 0, message: "전체 페이지를 계산하는 중..." });
         if (!(await waitForRenderPrerequisites(runId))) return;
-        const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(160, Math.floor(canvas.width / dpr) - settings.paddingLeft - settings.paddingRight);
-        const height = Math.max(160, Math.floor(canvas.height / dpr) - settings.paddingTop - settings.paddingBottom - FOOTER_HEIGHT);
+        updateViewportCache();
+        const width = Math.max(160, viewportWidth() - settings.paddingLeft - settings.paddingRight);
+        const height = Math.max(160, viewportHeight() - settings.paddingTop - settings.paddingBottom - FOOTER_HEIGHT);
         const maxLines = Math.max(1, Math.floor(height / Math.max(1, settings.fontSize * settings.lineHeight)));
         const nextStarts = [0];
         let line = 0;
         let lineWidth = 0;
+        let lastYieldAt = performance.now();
         const text = documentData.text || "";
         for (let index = 0; index < text.length; index++) {
           if (disposed || runId !== paginationRunId) return;
-          if (index > 0 && index % 50000 === 0) {
+          const now = performance.now();
+          if (now - lastYieldAt > PAGINATION_YIELD_MS) {
             post("loadingProgress", { progress: Math.min(.95, index / Math.max(1, text.length)) });
             await new Promise(resolve => setTimeout(resolve, 0));
             if (disposed || runId !== paginationRunId) return;
+            lastYieldAt = performance.now();
           }
           const code = text.charCodeAt(index);
           if (code === 13) continue;
@@ -117,7 +146,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
             }
             continue;
           }
-          const widthValue = glyphWidth(code, settings.fontSize, settings.letterSpacing, settings.isBold);
+          const widthValue = glyphWidth(text[index]);
           if (lineWidth > 0 && lineWidth + widthValue > width) {
             line++;
             lineWidth = 0;
@@ -147,7 +176,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         pageSurfaces.clear();
         render();
         post("loadingProgress", { progress: 1, message: "준비 완료" });
-        post("ready", { totalPages: totalPages(), currentPage: page, progress: progress(), title: documentData.title, offset: starts[page - 1] || 0 });
+        post("ready", { totalPages: totalPages(), currentPage: page, progress: progress(), title: documentData.title, offset: starts[page - 1] || 0, settingsKey });
       } catch (error) {
         post("error", { code: "PAGINATION_FAILED", message: error?.message || "페이지를 계산하는 중 오류가 발생했습니다." });
       }
@@ -161,16 +190,40 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       return totalPages() <= 1 ? 0 : (page - 1) / (totalPages() - 1);
     }
 
+    function renderDpr() {
+      return Math.max(1, Math.min(MAX_RENDER_DPR, window.devicePixelRatio || 1));
+    }
+
+    function updateViewportCache() {
+      const width = Math.max(1, Math.round(canvas.getBoundingClientRect().width || document.documentElement.clientWidth || window.innerWidth));
+      const height = Math.max(1, Math.round(canvas.getBoundingClientRect().height || document.documentElement.clientHeight || window.innerHeight));
+      const dpr = renderDpr();
+      const changed = viewportCache.width !== width || viewportCache.height !== height || viewportCache.dpr !== dpr;
+      viewportCache = { width, height, dpr };
+      return changed;
+    }
+
+    function viewportWidth() {
+      return viewportCache.width;
+    }
+
+    function viewportHeight() {
+      return viewportCache.height;
+    }
+
     function previewText() {
       return (documentData.text || "").slice(starts[page - 1], starts[page]).replace(/\\s+/g, " ").trim().slice(0, 80);
     }
 
     function resize() {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(window.innerWidth * dpr);
-      canvas.height = Math.floor(window.innerHeight * dpr);
-      canvas.style.width = window.innerWidth + "px";
-      canvas.style.height = window.innerHeight + "px";
+      const changed = updateViewportCache();
+      if (!changed && canvas.width > 0 && canvas.height > 0) return;
+      const { width, height, dpr } = viewportCache;
+      cancelPrewarm();
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       pageSurfaces.clear();
       void paginateInline();
@@ -188,30 +241,48 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         || previous.paddingRight !== next.paddingRight;
     }
 
-    function pageLines(text, width) {
-      const lines = [];
-      let line = "";
+    function visualSettingsChanged(previous, next) {
+      return paginationSettingsChanged(previous, next)
+        || previous.theme !== next.theme;
+    }
+
+    function pageLineRanges(pageNum, width) {
+      const ranges = [];
+      const text = documentData.text || "";
+      const pageStart = starts[pageNum - 1] || 0;
+      const pageEnd = starts[pageNum] ?? text.length;
+      let lineStart = pageStart;
       let lineWidth = 0;
-      for (let index = 0; index < text.length; index++) {
-        const ch = text[index];
-        if (ch === "\\r") continue;
-        if (ch === "\\n") {
-          lines.push(line);
-          line = "";
+      for (let index = pageStart; index < pageEnd; index++) {
+        const code = text.charCodeAt(index);
+        if (code === 13) continue;
+        if (code === 10) {
+          ranges.push([lineStart, index]);
+          lineStart = index + 1;
           lineWidth = 0;
           continue;
         }
-        const widthValue = glyphWidth(ch.charCodeAt(0), settings.fontSize, settings.letterSpacing, settings.isBold);
-        if (line && lineWidth + widthValue > width) {
-          lines.push(line);
-          line = "";
+        const widthValue = glyphWidth(text[index]);
+        if (index > lineStart && lineWidth + widthValue > width) {
+          ranges.push([lineStart, index]);
+          lineStart = index;
           lineWidth = 0;
         }
-        line += ch;
         lineWidth += widthValue;
       }
-      if (line) lines.push(line);
-      return lines;
+      if (lineStart < pageEnd) ranges.push([lineStart, pageEnd]);
+      return ranges;
+    }
+
+    function drawTextRun(target, value, x, y) {
+      if (!value) return;
+      let cursorX = x;
+      for (const ch of value) {
+        if (ch === "\\r") continue;
+        const drawValue = ch === "\\t" ? "    " : ch;
+        target.fillText(drawValue, cursorX, y);
+        cursorX += glyphWidth(ch);
+      }
     }
 
     function drawBookmarkFold(pageNum, target, width, theme) {
@@ -243,13 +314,13 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       target.font = (settings.isBold ? "700 " : "400 ") + settings.fontSize + "px " + settings.fontFamily;
       target.textBaseline = "top";
       const contentWidth = Math.max(160, width - settings.paddingLeft - settings.paddingRight);
-      const text = (documentData.text || "").slice(starts[pageNum - 1], starts[pageNum]);
-      const lines = pageLines(text, contentWidth);
+      const text = documentData.text || "";
+      const lines = pageLineRanges(pageNum, contentWidth);
       let y = settings.paddingTop;
       const maxY = height - settings.paddingBottom - FOOTER_HEIGHT;
-      for (const line of lines) {
+      for (const [start, end] of lines) {
         if (y + settings.fontSize > maxY) break;
-        target.fillText(line, settings.paddingLeft, y);
+        drawTextRun(target, text.slice(start, end), settings.paddingLeft, y);
         y += settings.fontSize * settings.lineHeight;
       }
       target.save();
@@ -266,9 +337,9 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     function getPageSurface(pageNum) {
       if (pageSurfaces.has(pageNum)) return pageSurfaces.get(pageNum);
       const theme = themes[settings.theme] || themes.paper;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const dpr = window.devicePixelRatio || 1;
+      const width = viewportWidth();
+      const height = viewportHeight();
+      const dpr = viewportCache.dpr;
       const surface = document.createElement("canvas");
       surface.width = Math.floor(width * dpr);
       surface.height = Math.floor(height * dpr);
@@ -281,18 +352,38 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
 
     function trimPageSurfaces(centerPage) {
       for (const cachedPage of pageSurfaces.keys()) {
-        if (Math.abs(cachedPage - centerPage) > 1) pageSurfaces.delete(cachedPage);
+        if (Math.abs(cachedPage - centerPage) > SURFACE_RADIUS) pageSurfaces.delete(cachedPage);
       }
+    }
+
+    function cancelPrewarm() {
+      if (prewarmTimer !== null) {
+        clearTimeout(prewarmTimer);
+        prewarmTimer = null;
+      }
+    }
+
+    function schedulePrewarm() {
+      cancelPrewarm();
+      if (isAnimating || disposed) return;
+      prewarmTimer = setTimeout(() => {
+        prewarmTimer = null;
+        if (isAnimating || disposed) return;
+        trimPageSurfaces(page);
+        if (page > 1) getPageSurface(page - 1);
+        if (page < totalPages()) getPageSurface(page + 1);
+        trimPageSurfaces(page);
+      }, 40);
     }
 
     function paintBackground(theme) {
       document.body.style.background = theme.bg;
       ctx.fillStyle = theme.bg;
-      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.fillRect(0, 0, viewportWidth(), viewportHeight());
     }
 
     function drawSurface(surface, x = 0, y = 0) {
-      ctx.drawImage(surface, x, y, window.innerWidth, window.innerHeight);
+      ctx.drawImage(surface, x, y, viewportWidth(), viewportHeight());
     }
 
     function render() {
@@ -300,6 +391,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       paintBackground(theme);
       drawSurface(getPageSurface(page));
       dogear.style.display = "none";
+      schedulePrewarm();
     }
 
     function drawSlideShadow(axis, edge, progress) {
@@ -312,20 +404,20 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         gradient.addColorStop(0, "rgba(0,0,0,0)");
         gradient.addColorStop(1, "rgba(0,0,0," + (.28 * strength) + ")");
         ctx.fillStyle = gradient;
-        ctx.fillRect(0, edge - shadowSize, window.innerWidth, shadowSize);
+        ctx.fillRect(0, edge - shadowSize, viewportWidth(), shadowSize);
       } else {
         gradient = ctx.createLinearGradient(edge - shadowSize, 0, edge, 0);
         gradient.addColorStop(0, "rgba(0,0,0,0)");
         gradient.addColorStop(1, "rgba(0,0,0," + (.28 * strength) + ")");
         ctx.fillStyle = gradient;
-        ctx.fillRect(edge - shadowSize, 0, shadowSize, window.innerHeight);
+        ctx.fillRect(edge - shadowSize, 0, shadowSize, viewportHeight());
       }
     }
 
     function renderSlide(progress, previous, axis, fromPage, targetPage) {
       const theme = themes[settings.theme] || themes.paper;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const width = viewportWidth();
+      const height = viewportHeight();
       const distance = axis === "vertical" ? height : width;
       const offset = progress * distance;
       paintBackground(theme);
@@ -347,8 +439,8 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     }
 
     function bookGeometry(u, progress, previous) {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const width = viewportWidth();
+      const height = viewportHeight();
       const baseAngle = previous ? Math.PI * (1 - progress) : Math.PI * progress;
       const curl = Math.sin(Math.PI * progress) * (u - .5) * .52 * (previous ? -1 : 1);
       const angle = baseAngle + curl;
@@ -370,26 +462,26 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       const strength = Math.sin(Math.PI * progress);
       if (strength <= 0) return;
       const edge = bookGeometry(1, progress, previous);
-      const x = Math.max(0, Math.min(window.innerWidth, (edge.topX + edge.bottomX) / 2));
+      const x = Math.max(0, Math.min(viewportWidth(), (edge.topX + edge.bottomX) / 2));
       const size = 34 + 70 * strength;
       const gradient = ctx.createLinearGradient(x, 0, x + size, 0);
       gradient.addColorStop(0, "rgba(0,0,0," + (.38 * strength) + ")");
       gradient.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = gradient;
-      ctx.fillRect(x, 0, size, window.innerHeight);
+      ctx.fillRect(x, 0, size, viewportHeight());
 
       const spine = ctx.createLinearGradient(0, 0, 54, 0);
       spine.addColorStop(0, "rgba(0,0,0," + (.24 * strength) + ")");
       spine.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = spine;
-      ctx.fillRect(0, 0, 54, window.innerHeight);
+      ctx.fillRect(0, 0, 54, viewportHeight());
     }
 
     function drawBookSheet(surface, progress, previous, theme) {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const dpr = window.devicePixelRatio || 1;
-      const stripWidth = 8;
+      const width = viewportWidth();
+      const height = viewportHeight();
+      const dpr = viewportCache.dpr;
+      const stripWidth = Math.max(8, Math.ceil(width / 56));
       for (let sourceX = 0; sourceX < width; sourceX += stripWidth) {
         const sourceWidth = Math.min(stripWidth + 1, width - sourceX);
         const left = bookGeometry(sourceX / width, progress, previous);
@@ -536,9 +628,9 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         } else {
           animationFrame = null;
           page = targetPage;
-          render();
           trimPageSurfaces(page);
           isAnimating = false;
+          render();
           post("pageChanged", { currentPage: page, totalPages: totalPages(), progress: progress(), completed: page === totalPages(), preview: previewText(), previousPage: oldPage, offset: starts[page - 1] || 0 });
         }
       };
@@ -556,8 +648,9 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     function goToPage(nextPage, requestId) {
       if (isAnimating) return;
       page = Math.min(totalPages(), Math.max(1, Math.round(nextPage)));
-      render();
+      pageSurfaces.delete(page);
       trimPageSurfaces(page);
+      render();
       post("pageChanged", { currentPage: page, totalPages: totalPages(), progress: progress(), preview: previewText(), offset: starts[page - 1] || 0 }, requestId);
     }
 
@@ -594,6 +687,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       if (message?.version !== 1 || !allowedIncoming.has(message.type)) return;
       if (message.type === "disposeDocument") {
         disposed = true;
+        cancelPrewarm();
         if (animationFrame !== null) cancelAnimationFrame(animationFrame);
         animationFrame = null;
         isAnimating = false;
@@ -601,6 +695,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       if (message.type === "initializeDocument") {
         documentData = message.payload;
         settings = message.payload.settings || settings;
+        settingsKey = message.payload.settingsKey || settingsKey;
         page = message.payload.initialPage || 1;
         disposed = false;
         pageSurfaces.clear();
@@ -608,27 +703,34 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       }
       if (message.type === "updateSettings") {
         if (isAnimating) return;
-        const nextSettings = message.payload;
+        const nextSettings = message.payload.settings || message.payload;
+        settingsKey = message.payload.settingsKey || settingsKey;
         const needsPagination = paginationSettingsChanged(settings, nextSettings);
+        const needsRender = visualSettingsChanged(settings, nextSettings);
         settings = nextSettings;
-        pageSurfaces.clear();
+        resetGlyphWidthCache();
         if (needsPagination) {
+          pageSurfaces.clear();
           targetOffset = starts[page - 1] || 0;
           void paginateInline();
-        } else {
+        } else if (needsRender) {
+          pageSurfaces.clear();
           render();
+        } else {
+          schedulePrewarm();
         }
       }
       if (message.type === "goToPage") goToPage(message.payload.page, message.requestId);
       if (message.type === "goToOffset") goToOffset(message.payload.offset, message.requestId);
+      if (message.type === "turnPage") go(message.payload.delta, message.payload.axis || "horizontal");
       if (message.type === "toggleBookmark") toggleBookmark(message.requestId);
     }
 
     canvas.addEventListener("click", event => {
       if (Date.now() < suppressClickUntil) return;
       if (!settings.pageTurnTouch || isAnimating) return;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth();
+      const h = viewportHeight();
       const nx = event.clientX / w - .5;
       const ny = event.clientY / h - .5;
       if (Math.abs(nx) >= Math.abs(ny)) {

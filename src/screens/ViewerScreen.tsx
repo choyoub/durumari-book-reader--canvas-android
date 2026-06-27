@@ -98,7 +98,7 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
     return (
       <View style={[styles.viewerLoading, { backgroundColor: theme.outer }]}>
         <View style={{ alignItems: "center", padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
-          <Text style={{ color: theme.accent, fontSize: 18, marginBottom: 8, fontWeight: "700" }}>문서를 열 수 없습니다</Text>
+          <Text style={{ color: theme.accentText, fontSize: 18, marginBottom: 8, fontWeight: "700" }}>문서를 열 수 없습니다</Text>
           <Text style={{ fontSize: 14, color: theme.secondary, marginBottom: 24, textAlign: "center" }}>{error.message}</Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Pressable style={[styles.popupButton, { borderColor: theme.border, flex: 1, alignItems: "center" }]} onPress={onClose}>
@@ -240,6 +240,7 @@ export function ViewerScreen() {
   const [activeModal, setActiveModal] = useState<ViewerModal | null>(null);
   const [pageDraft, setPageDraft] = useState("1");
   const [pageRequest, setPageRequest] = useState<{ signal: number; page: number }>({ signal: 0, page: 1 });
+  const [turnRequest, setTurnRequest] = useState<{ signal: number; delta: -1 | 1 }>({ signal: 0, delta: 1 });
   const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -310,10 +311,10 @@ export function ViewerScreen() {
       if (!settings.volumeKeyPaging || !activeDocument) return;
       const { current, total } = viewerPage;
       if (action === "volumeDown") {
-        if (current < total) setPageRequest({ signal: Date.now(), page: current + 1 });
+        if (current < total) setTurnRequest({ signal: Date.now(), delta: 1 });
         else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       } else if (action === "volumeUp") {
-        if (current > 1) setPageRequest({ signal: Date.now(), page: current - 1 });
+        if (current > 1) setTurnRequest({ signal: Date.now(), delta: -1 });
         else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
     });
@@ -433,6 +434,7 @@ export function ViewerScreen() {
             }}
             bookmarkSignal={bookmarkSignal}
             pageRequest={pageRequest}
+            turnRequest={turnRequest}
             offsetRequest={offsetRequest}
           />
         ) : null}

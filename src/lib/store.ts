@@ -142,7 +142,7 @@ export async function upsertDocuments(documents: DocumentRecord[]) {
             title = excluded.title,
             kind = excluded.kind,
             fileSize = CASE WHEN excluded.fileSize > 0 THEN excluded.fileSize ELSE documents.fileSize END,
-            modifiedAt = excluded.modifiedAt,
+            modifiedAt = CASE WHEN excluded.modifiedAt > 0 THEN excluded.modifiedAt ELSE documents.modifiedAt END,
             contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
             text = COALESCE(excluded.text, documents.text),
             toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
@@ -198,7 +198,7 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         && current.sourceUri === document.sourceUri
         && current.title === document.title
         && current.kind === document.kind
-        && current.modifiedAt === document.modifiedAt
+        && (document.modifiedAt <= 0 || current.modifiedAt === document.modifiedAt)
         && (document.fileSize <= 0 || current.fileSize === document.fileSize)
       ) {
         continue;
@@ -214,7 +214,7 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
             title = excluded.title,
             kind = excluded.kind,
             fileSize = CASE WHEN excluded.fileSize > 0 THEN excluded.fileSize ELSE documents.fileSize END,
-            modifiedAt = excluded.modifiedAt,
+            modifiedAt = CASE WHEN excluded.modifiedAt > 0 THEN excluded.modifiedAt ELSE documents.modifiedAt END,
             contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
             text = COALESCE(excluded.text, documents.text),
             toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
@@ -253,7 +253,7 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         `UPDATE documents
           SET text = COALESCE(documents.text, (SELECT text FROM documents WHERE documentId = ?)),
               toc = COALESCE(documents.toc, (SELECT toc FROM documents WHERE documentId = ?)),
-              modifiedAt = ?,
+              modifiedAt = CASE WHEN ? > 0 THEN ? ELSE documents.modifiedAt END,
               fileSize = CASE
                 WHEN documents.fileSize > 0 THEN documents.fileSize
                 ELSE COALESCE((SELECT fileSize FROM documents WHERE documentId = ?), documents.fileSize)
@@ -261,6 +261,7 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
           WHERE documentId = ?`,
         match.documentId,
         match.documentId,
+        document.modifiedAt,
         document.modifiedAt,
         match.documentId,
         document.documentId,

@@ -1,9 +1,20 @@
-import { AppState, Platform } from "react-native";
+import { AppState, NativeModules, Platform } from "react-native";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
 import type { BookKind, DocumentRecord, FolderRecord } from "../types";
 
 const { StorageAccessFramework } = FileSystem;
+
+type SafNativeMetadata = {
+  size?: number;
+  modifiedAt?: number;
+};
+
+const SafMetadataModule = NativeModules.SafMetadataModule as
+  | { getFileMetadata: (uri: string) => Promise<SafNativeMetadata> }
+  | undefined;
+
+type SafFolderScanMode = "quick" | "detailed";
 
 export interface SafFolderScanProgress {
   folderIndex: number;
@@ -82,14 +93,25 @@ function normalizeModifiedAt(value?: number) {
     : Math.round(value);
 }
 
-async function readFileMetadata(uri: string, fallbackModifiedAt: number) {
+async function readFileMetadata(uri: string) {
   let fileSize = 0;
-  let modifiedAt = fallbackModifiedAt;
+  let modifiedAt = 0;
+  if (Platform.OS === "android" && SafMetadataModule?.getFileMetadata) {
+    try {
+      const metadata = await SafMetadataModule.getFileMetadata(uri);
+      fileSize = metadata.size ?? 0;
+      modifiedAt = normalizeModifiedAt(metadata.modifiedAt) ?? 0;
+      if (modifiedAt > 0) return { fileSize, modifiedAt };
+    } catch {
+      // Fall through to Expo FileSystem metadata lookup.
+    }
+  }
+
   try {
     const info = await FileSystem.getInfoAsync(uri);
     if (info.exists) {
       fileSize = info.size ?? 0;
-      modifiedAt = normalizeModifiedAt(info.modificationTime) ?? modifiedAt;
+      modifiedAt = normalizeModifiedAt(info.modificationTime) ?? 0;
     }
   } catch {
     // Some SAF providers omit file metadata. Keep scanning with a stable fallback date.
@@ -105,6 +127,7 @@ async function readFileMetadata(uri: string, fallbackModifiedAt: number) {
 async function scanSafFolder(
   folder: FolderRecord,
   onProgress?: (completedFiles: number, totalFiles: number) => void,
+  mode: SafFolderScanMode = "detailed",
 ): Promise<DocumentRecord[]> {
   const uris = await StorageAccessFramework.readDirectoryAsync(folder.treeUri);
   const files = uris
@@ -113,14 +136,15 @@ async function scanSafFolder(
   const documents: DocumentRecord[] = [];
   onProgress?.(0, files.length);
 
-  const fallbackModifiedAt = folder.lastSyncedAt ?? folder.createdAt;
   const batchSize = 15;
   for (let i = 0; i < files.length; i += batchSize) {
     const batch = files.slice(i, i + batchSize);
     const batchDocuments = await Promise.all(batch.map(async (file) => {
       const kind = extension(file.name)!;
       const contentHash = hashFromUri(file.uri, file.name);
-      const metadata = await readFileMetadata(file.uri, fallbackModifiedAt);
+      const metadata = mode === "detailed"
+        ? await readFileMetadata(file.uri)
+        : { fileSize: 0, modifiedAt: 0 };
       return {
         documentId: `${folder.folderId}:${file.name}:${contentHash}`,
         folderId: folder.folderId,
@@ -170,6 +194,7 @@ export async function chooseSafFolder(): Promise<{ folder: FolderRecord; documen
 export async function rescanSafFolders(
   folders: FolderRecord[],
   onProgress?: (progress: SafFolderScanProgress) => void,
+  mode: SafFolderScanMode = "detailed",
 ) {
   if (Platform.OS !== "android") return [];
   const all: { folder: FolderRecord; documents: DocumentRecord[] }[] = [];
@@ -192,7 +217,7 @@ export async function rescanSafFolders(
 
     reportProgress(0, 0);
     try {
-      const documents = await scanSafFolder(folder, reportProgress);
+      const documents = await scanSafFolder(folder, reportProgress, mode);
       all.push({
         folder: { ...folder, lastSyncedAt: Date.now(), permissionStatus: "granted" },
         documents,

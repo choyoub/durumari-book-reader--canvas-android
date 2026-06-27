@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { ReaderSettings } from "../types";
 import { nativeFontFamily, READER_FONTS, themeTokens } from "../lib/settings";
 import { ThemedScreen } from "./ThemedScreen";
@@ -10,7 +9,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function SettingTitle({ text, theme }: { text: string; theme: typeof themeTokens.paper }) {
-  return <Text style={[styles.settingTitle, { color: theme.accent }]}>{text}</Text>;
+  return <Text style={[styles.settingTitle, { color: theme.accentText }]}>{text}</Text>;
 }
 
 function SettingSection({ children, theme }: { children: React.ReactNode; theme: typeof themeTokens.paper }) {
@@ -24,7 +23,7 @@ function SettingSection({ children, theme }: { children: React.ReactNode; theme:
 function CheckboxMark({ checked, theme }: { checked: boolean; theme: typeof themeTokens.paper }) {
   return (
     <View style={[styles.checkbox, { borderColor: theme.accent, backgroundColor: checked ? theme.accent : "transparent" }]}>
-      <Text style={[styles.checkboxText, { color: checked ? "#FFF" : "transparent" }]}>✓</Text>
+      {checked ? <Text style={styles.checkboxText}>✓</Text> : null}
     </View>
   );
 }
@@ -79,7 +78,7 @@ function Segment({
     <View style={[styles.segment, { borderColor: theme.border }]}>
       {values.map(([value, label], index) => (
         <Pressable key={value} onPress={() => onChange(value)} style={[styles.segmentItem, { borderColor: current === value ? theme.accent : theme.border, backgroundColor: current === value ? theme.bg : "transparent" }]}>
-          <Text style={{ color: current === value ? theme.accent : theme.text }}>{label}</Text>
+          <Text style={{ color: current === value ? theme.accentText : theme.text }}>{label}</Text>
         </Pressable>
       ))}
     </View>
@@ -144,7 +143,13 @@ export function SettingsModal({
   };
   return (
     <>
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={onClose}
+        statusBarTranslucent
+        navigationBarTranslucent
+      >
         <ThemedScreen theme={theme} contentColor={theme.card} contentStyle={styles.settingsScreen}>
           <View style={[styles.settingsSheet, { backgroundColor: theme.card }]}>
             <View style={[styles.previewPane, { borderColor: theme.border }]}>
@@ -288,8 +293,10 @@ export function SettingsModal({
         transparent
         animationType="fade"
         onRequestClose={() => setFontPickerOpen(false)}
+        statusBarTranslucent
+        navigationBarTranslucent
       >
-        <SafeAreaView style={styles.fontPickerScreen}>
+        <ThemedScreen theme={theme} contentColor="rgba(0,0,0,0.45)" contentStyle={styles.fontPickerScreen}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setFontPickerOpen(false)}
@@ -329,14 +336,14 @@ export function SettingsModal({
                     accessibilityRole="radio"
                     accessibilityState={{ checked: selected }}
                   >
-                    <Text style={{ color: selected ? theme.accent : theme.text, fontFamily: font.native }}>{font.label}</Text>
-                    <Text style={{ color: selected ? theme.accent : theme.secondary }}>{selected ? "●" : "○"}</Text>
+                    <Text style={{ color: selected ? theme.accentText : theme.text, fontFamily: font.native }}>{font.label}</Text>
+                    <Text style={{ color: selected ? theme.accentText : theme.secondary }}>{selected ? "●" : "○"}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
           </View>
-        </SafeAreaView>
+        </ThemedScreen>
       </Modal>
     </>
   );
@@ -371,7 +378,7 @@ const styles = StyleSheet.create({
   stepValue: { width: 60, textAlign: "center", fontVariant: ["tabular-nums"] },
   checkRow: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   checkbox: { width: 26, height: 26, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  checkboxText: { fontSize: 19, lineHeight: 22, fontWeight: "800" },
+  checkboxText: { color: "#FFF", fontSize: 19, lineHeight: 22, fontWeight: "800" },
   segmentField: { minHeight: 56, gap: 8, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   segment: { flexDirection: "row", minHeight: 40, gap: 8 },
   segmentItem: { flex: 1, borderWidth: 1, alignItems: "center", justifyContent: "center" },

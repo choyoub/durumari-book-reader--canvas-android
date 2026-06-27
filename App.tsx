@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, BackHandler, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -12,11 +12,12 @@ import { MainTabPager } from "./src/components/MainTabPager";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { ThemedScreen } from "./src/components/ThemedScreen";
 import { ViewerScreen } from "./src/screens/ViewerScreen";
-import { defaultSettings, themeTokens } from "./src/lib/settings";
+import { defaultSettings, resolveActiveFolderId, themeTokens } from "./src/lib/settings";
 import { subscribeForegroundRescan } from "./src/lib/safImport";
-import { clearFolders, initStore, loadSettings, saveSettings } from "./src/lib/store";
+import { clearFolders, initStore, listFolders, loadSettings, saveSettings } from "./src/lib/store";
 
 const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
+const BACKGROUND_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
 
 // Global Error Handler to catch startup crashes
 if (typeof global !== "undefined" && (global as any).ErrorUtils) {
@@ -81,6 +82,7 @@ function AppContent() {
     setDraftSettings,
     activeDocument,
     setActiveDocument,
+    activeFolderId,
     refresh,
     rescanFolders,
   } = useAppContext();
@@ -94,6 +96,27 @@ function AppContent() {
   const [tab, setTab] = useState<TabName>("library");
   const [search, setSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const lastFullSyncAtRef = useRef(0);
+  const lastFolderSyncAtRef = useRef(new Map<string, number>());
+  const previousActiveDocumentRef = useRef(Boolean(activeDocument));
+
+  const requestBackgroundSync = useCallback((folderId: string | null | undefined, force = false) => {
+    if (!folderId) return;
+    const now = Date.now();
+    const lastFullSyncAt = lastFullSyncAtRef.current;
+    const lastFolderSyncAt = lastFolderSyncAtRef.current.get(folderId) ?? 0;
+    if (
+      !force
+      && (
+        now - lastFullSyncAt < BACKGROUND_SYNC_COOLDOWN_MS
+        || now - lastFolderSyncAt < BACKGROUND_SYNC_COOLDOWN_MS
+      )
+    ) {
+      return;
+    }
+    lastFolderSyncAtRef.current.set(folderId, now);
+    void rescanFolders({ folderIds: [folderId] });
+  }, [rescanFolders]);
 
   useEffect(() => {
     let mounted = true;
@@ -123,12 +146,21 @@ function AppContent() {
       setDraftSettings(saved);
       setLoadingProgress(0.55);
       setLoadingText("로컬 폴더를 확인하는 중...");
-      await rescanFolders((syncProgress) => {
+      const storedFolders = await listFolders();
+      const introFolderId = resolveActiveFolderId(
+        storedFolders.map((folder) => folder.folderId),
+        saved.activeFolderId ?? null,
+      );
+      await rescanFolders({
+        folderIds: introFolderId ? [introFolderId] : undefined,
+        onProgress: (syncProgress) => {
         if (!mounted) return;
         setLoadingProgress(0.55 + syncProgress.progress * 0.4);
         setLoadingText(syncProgress.message);
+        },
       });
       if (!mounted) return;
+      if (introFolderId) lastFolderSyncAtRef.current.set(introFolderId, Date.now());
       setLoadingProgress(1);
       setLoadingText("준비 완료!");
       setBootReady(true);
@@ -149,9 +181,21 @@ function AppContent() {
   useEffect(() => {
     if (booting) return;
     return subscribeForegroundRescan(() => {
-      void rescanFolders();
+      if (!activeDocument && tab === "library") requestBackgroundSync(activeFolderId);
     });
-  }, [booting, rescanFolders]);
+  }, [activeDocument, activeFolderId, booting, requestBackgroundSync, tab]);
+
+  useEffect(() => {
+    if (booting || activeDocument || tab !== "library") return;
+    requestBackgroundSync(activeFolderId);
+  }, [activeDocument, activeFolderId, booting, requestBackgroundSync, tab]);
+
+  useEffect(() => {
+    const wasViewing = previousActiveDocumentRef.current;
+    const isViewing = Boolean(activeDocument);
+    previousActiveDocumentRef.current = isViewing;
+    if (!booting && wasViewing && !isViewing) requestBackgroundSync(activeFolderId);
+  }, [activeDocument, activeFolderId, booting, requestBackgroundSync]);
 
   const theme = themeTokens[settings.theme];
 
@@ -259,7 +303,7 @@ function AppContent() {
         <View style={[styles.tabs, { borderColor: theme.border }]}>
           {MAIN_TABS.map((name) => (
             <Pressable key={name} style={[styles.tab, tab === name && { borderBottomColor: theme.accent }]} onPress={() => setTab(name)}>
-              <Text style={[styles.tabText, { color: tab === name ? theme.accent : theme.secondary }]}>
+              <Text style={[styles.tabText, { color: tab === name ? theme.accentText : theme.secondary }]}>
                 {name === "library" ? "📚 목록" : name === "history" ? "🕘 히스토리" : "🔖 책갈피"}
               </Text>
             </Pressable>

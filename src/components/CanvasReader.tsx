@@ -3,7 +3,6 @@ import { useAssets } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { BookmarkRecord, DocumentRecord, ReaderSettings } from "../types";
-import { nativeFontFamily } from "../lib/settings";
 import { createCanvasHtml } from "../viewer/canvasHtml";
 
 const VIEWER_FONT_ASSETS = [
@@ -19,6 +18,27 @@ const VIEWER_FONT_ASSETS = [
   ["KoPubWorldBatang", require("../../assets/fonts/KoPubWorldBatang.otf")],
   ["RidiBatang", require("../../assets/fonts/RidiBatang.otf")],
 ] as const;
+
+const VIEWER_FONT_MODULES = VIEWER_FONT_ASSETS.map(([, asset]) => asset);
+
+function createSettingsKey(settings: ReaderSettings) {
+  return JSON.stringify({
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    isBold: settings.isBold,
+    lineHeight: settings.lineHeight,
+    letterSpacing: settings.letterSpacing,
+    paddingTop: settings.paddingTop,
+    paddingBottom: settings.paddingBottom,
+    paddingLeft: settings.paddingLeft,
+    paddingRight: settings.paddingRight,
+    pageTurnTouch: settings.pageTurnTouch,
+    pageTurnSwipe: settings.pageTurnSwipe,
+    pageTurnFeedback: settings.pageTurnFeedback,
+    pageTurnStyle: settings.pageTurnStyle,
+    theme: settings.theme,
+  });
+}
 
 interface Props {
   document: DocumentRecord;
@@ -46,6 +66,7 @@ interface Props {
   onLoadingProgress?: (payload: { progress: number; message?: string }) => void;
   bookmarkSignal?: number;
   pageRequest?: { signal: number; page: number };
+  turnRequest?: { signal: number; delta: -1 | 1 };
   offsetRequest?: { signal: number; offset: number };
   onError?: (payload: { code: string; message: string }) => void;
 }
@@ -63,28 +84,35 @@ export function CanvasReader({
   onLoadingProgress,
   bookmarkSignal = 0,
   pageRequest,
+  turnRequest,
   offsetRequest,
   onError,
 }: Props) {
   const webViewRef = useRef<WebView>(null);
-  const selectedFontAsset = useMemo(() => {
-    const selectedFont = nativeFontFamily(settings.fontFamily);
-    return VIEWER_FONT_ASSETS.find(([name]) => name === selectedFont) ?? VIEWER_FONT_ASSETS[0];
-  }, [settings.fontFamily]);
-  const [fontAssets, fontAssetError] = useAssets([selectedFontAsset[1]]);
+  const [fontAssets, fontAssetError] = useAssets(VIEWER_FONT_MODULES);
   const fontUris = useMemo(() => {
-    const uri = fontAssets?.[0]?.localUri ?? fontAssets?.[0]?.uri;
-    return uri ? { [selectedFontAsset[0]]: uri } : undefined;
-  }, [fontAssets, selectedFontAsset]);
+    if (!fontAssets) return undefined;
+    return fontAssets.reduce<Record<string, string>>((uris, asset, index) => {
+      const uri = asset.localUri ?? asset.uri;
+      if (uri) uris[VIEWER_FONT_ASSETS[index][0]] = uri;
+      return uris;
+    }, {});
+  }, [fontAssets]);
+  const settingsKey = useMemo(() => createSettingsKey(settings), [settings]);
+  const initialBookmarkPagesRef = useRef<number[] | null>(null);
+  if (initialBookmarkPagesRef.current === null) {
+    initialBookmarkPagesRef.current = bookmarks.filter((item) => item.documentId === document.documentId).map((item) => item.page);
+  }
   const html = useMemo(
     () => createCanvasHtml({
       documentId: document.documentId,
       title: document.title,
       text: document.text ?? "",
       initialPage,
-      bookmarks: bookmarks.filter((item) => item.documentId === document.documentId).map((item) => item.page),
+      bookmarks: initialBookmarkPagesRef.current ?? [],
       settings,
       fontUris,
+      settingsKey,
     }),
     [document.documentId, document.text, document.title, fontUris],
   );
@@ -97,9 +125,9 @@ export function CanvasReader({
       version: 1,
       type: "updateSettings",
       requestId: `settings-${Date.now()}`,
-      payload: settings,
+      payload: { settings, settingsKey },
     }));
-  }, [settings]);
+  }, [settings, settingsKey]);
 
   useEffect(() => {
     if (!bookmarkSignal) return;
@@ -122,6 +150,16 @@ export function CanvasReader({
   }, [pageRequest]);
 
   useEffect(() => {
+    if (!turnRequest?.signal) return;
+    webViewRef.current?.postMessage(JSON.stringify({
+      version: 1,
+      type: "turnPage",
+      requestId: `turn-page-${turnRequest.signal}`,
+      payload: { delta: turnRequest.delta, axis: "horizontal" },
+    }));
+  }, [turnRequest]);
+
+  useEffect(() => {
     if (!offsetRequest?.signal) return;
     webViewRef.current?.postMessage(JSON.stringify({
       version: 1,
@@ -135,7 +173,10 @@ export function CanvasReader({
     try {
       const message = JSON.parse(event.nativeEvent.data) as { version: number; type: string; payload: any };
       if (message.version !== 1) return;
-      if (message.type === "ready") onReady(message.payload.currentPage, message.payload.totalPages, message.payload.offset);
+      if (message.type === "ready") {
+        if (message.payload?.settingsKey !== settingsKey) return;
+        onReady(message.payload.currentPage, message.payload.totalPages, message.payload.offset);
+      }
       if (message.type === "pageChanged") onPageChanged(message.payload);
       if (message.type === "bookmarkChanged") onBookmarkChanged(message.payload);
       if (message.type === "menuRequested") onMenuRequested?.();
@@ -168,5 +209,5 @@ export function CanvasReader({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  webview: { flex: 1, backgroundColor: "transparent" },
+  webview: { flex: 1, alignSelf: "stretch", width: "100%", height: "100%", backgroundColor: "transparent" },
 });

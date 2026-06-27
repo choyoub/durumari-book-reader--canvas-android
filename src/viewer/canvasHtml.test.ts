@@ -46,6 +46,7 @@ describe("canvasHtml", () => {
         pageTurnTouch: true,
         pageTurnSwipe: true,
       } as any,
+      settingsKey: "motion-settings",
     });
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 
@@ -53,7 +54,14 @@ describe("canvasHtml", () => {
     expect(() => new Function(script!)).not.toThrow();
     expect(html).toContain("const TURN_DURATION = 380");
     expect(html).toContain("let paginationRunId = 0");
+    expect(html).toContain("const MAX_RENDER_DPR = 2");
+    expect(html).toContain("function schedulePrewarm(");
+    expect(html).toContain("function pageLineRanges(");
+    expect(html).toContain('let settingsKey = INITIAL.settingsKey || ""');
+    expect(html).toContain('"settingsKey":"motion-settings"');
+    expect(html).toContain("document.fonts?.load");
     expect(html).toContain("document.fonts?.ready");
+    expect(html).toContain("settingsKey");
     expect(html).toContain("function renderSlide(");
     expect(html).toContain("function renderBook(");
     expect(html).toContain("function drawBookSheet(");

@@ -3,29 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
-import { DocumentRecord, ReadingRecord, SortConfig } from "../types";
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function percent(value = 0) {
-  return `${Math.round(clamp(value, 0, 1) * 100)}%`;
-}
-
-function formatDate(value?: number) {
-  if (!value) return "-";
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}.${month}.${day}`;
-}
+import { DocumentRecord, ReadingRecord } from "../types";
+import { formatDate, percent, sortIndicator } from "../lib/listFormat";
 
 export function HistoryScreen({ search }: { search: string }) {
   const {
     settings,
-    documents,
+    documentsById,
     readings,
     foldersById,
     setActiveDocument,
@@ -36,7 +20,7 @@ export function HistoryScreen({ search }: { search: string }) {
 
   const historyRows = useMemo(() => {
     const joined = readings
-      .map((reading) => ({ reading, document: documents.find((item) => item.documentId === reading.documentId) }))
+      .map((reading) => ({ reading, document: documentsById.get(reading.documentId) }))
       .filter((row): row is { reading: ReadingRecord; document: DocumentRecord } => Boolean(row.document));
 
     const keyword = search.trim().toLowerCase();
@@ -52,12 +36,7 @@ export function HistoryScreen({ search }: { search: string }) {
       if (sort.column === "progress") return (a.reading.progress - b.reading.progress) * dir;
       return (a.reading.openedAt - b.reading.openedAt) * dir;
     });
-  }, [documents, readings, settings.historySort, search]);
-
-  const sortIndicator = (sort: SortConfig, column: string) => {
-    if (sort.column !== column || sort.direction === "none") return "";
-    return sort.direction === "asc" ? " ▲" : " ▼";
-  };
+  }, [documentsById, readings, settings.historySort, search]);
 
   return (
     <View style={styles.content}>
@@ -67,13 +46,13 @@ export function HistoryScreen({ search }: { search: string }) {
           <Text style={[styles.thText, { color: theme.text }]}>폴더</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 4 }]} onPress={() => void updateSort("history", "name")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "name" ? theme.accent : theme.text }]}>제목{sortIndicator(settings.historySort, "name")}</Text>
+          <Text style={[styles.thText, { color: settings.historySort.column === "name" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.historySort, "name")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 2.5 }]} onPress={() => void updateSort("history", "openedAt")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "openedAt" ? theme.accent : theme.text, textAlign: "center" }]}>읽은 일자{sortIndicator(settings.historySort, "openedAt")}</Text>
+          <Text style={[styles.thText, { color: settings.historySort.column === "openedAt" ? theme.accentText : theme.text, textAlign: "center" }]}>읽은 일자{sortIndicator(settings.historySort, "openedAt")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("history", "progress")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "progress" ? theme.accent : theme.text, textAlign: "center" }]}>진행률{sortIndicator(settings.historySort, "progress")}</Text>
+          <Text style={[styles.thText, { color: settings.historySort.column === "progress" ? theme.accentText : theme.text, textAlign: "center" }]}>진행률{sortIndicator(settings.historySort, "progress")}</Text>
         </Pressable>
       </View>
       <ScrollView>
@@ -82,7 +61,7 @@ export function HistoryScreen({ search }: { search: string }) {
             <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
             <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
             <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(reading.openedAt)}</Text>
-            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accent }]}>{percent(reading.progress)}</Text>
+            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>{percent(reading.progress)}</Text>
           </Pressable>
         ))}
       </ScrollView>

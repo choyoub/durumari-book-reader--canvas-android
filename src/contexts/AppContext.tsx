@@ -29,6 +29,11 @@ export interface FolderSyncProgress {
 
 type FolderSyncProgressListener = (progress: FolderSyncProgress) => void;
 
+type FolderSyncOptions = {
+  folderIds?: string[];
+  onProgress?: FolderSyncProgressListener;
+};
+
 interface AppContextValue {
   settings: ReaderSettings;
   setSettings: React.Dispatch<React.SetStateAction<ReaderSettings>>;
@@ -41,6 +46,7 @@ interface AppContextValue {
   bookmarks: BookmarkRecord[];
   
   readingsById: Map<string, ReadingRecord>;
+  documentsById: Map<string, DocumentRecord>;
   foldersById: Map<string, FolderRecord>;
 
   activeFolderId: string | null;
@@ -50,7 +56,7 @@ interface AppContextValue {
   setActiveDocument: React.Dispatch<React.SetStateAction<DocumentRecord | null>>;
 
   refresh: () => Promise<void>;
-  rescanFolders: (onProgress?: FolderSyncProgressListener) => Promise<void>;
+  rescanFolders: (options?: FolderSyncProgressListener | FolderSyncOptions) => Promise<void>;
   updateSort: (target: TabName, column: string) => Promise<void>;
 }
 
@@ -95,7 +101,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBookmarks(bookmarkRows);
   }, []);
 
-  const rescanFoldersContext = useCallback(async (onProgress?: FolderSyncProgressListener) => {
+  const rescanFoldersContext = useCallback(async (options?: FolderSyncProgressListener | FolderSyncOptions) => {
+    const onProgress = typeof options === 'function' ? options : options?.onProgress;
+    const folderIds = typeof options === 'function' ? undefined : options?.folderIds;
     if (onProgress) rescanProgressListenersRef.current.add(onProgress);
 
     if (!rescanPromiseRef.current) {
@@ -105,7 +113,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const task = (async () => {
         report({ phase: 'preparing', progress: 0, message: '로컬 폴더를 확인하는 중...' });
         const currentFolders = await listFolders();
-        const rescanned = await rescanSafFolders(currentFolders, (scanProgress) => {
+        const targetFolders = folderIds?.length
+          ? currentFolders.filter((folder) => folderIds.includes(folder.folderId))
+          : currentFolders;
+        if (!targetFolders.length) {
+          report({ phase: 'complete', progress: 1, message: '동기화할 폴더가 없습니다.' });
+          return;
+        }
+        const rescanned = await rescanSafFolders(targetFolders, (scanProgress) => {
           const fileCount = scanProgress.totalFiles > 0
             ? ` ${scanProgress.completedFiles}/${scanProgress.totalFiles}`
             : '';
@@ -179,6 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const readingsById = useMemo(() => new Map(readings.map((item) => [item.documentId, item])), [readings]);
+  const documentsById = useMemo(() => new Map(documents.map((item) => [item.documentId, item])), [documents]);
   const foldersById = useMemo(() => new Map(folders.map((item) => [item.folderId, item])), [folders]);
 
   return (
@@ -186,7 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       settings, setSettings,
       draftSettings, setDraftSettings,
       folders, documents, readings, bookmarks,
-      readingsById, foldersById,
+      readingsById, documentsById, foldersById,
       activeFolderId, setActiveFolderId,
       activeDocument, setActiveDocument,
       refresh,

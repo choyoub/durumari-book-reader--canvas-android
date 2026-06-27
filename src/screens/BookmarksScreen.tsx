@@ -3,21 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
-import { BookmarkRecord, DocumentRecord, SortConfig } from "../types";
-
-function formatDate(value?: number) {
-  if (!value) return "-";
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}.${month}.${day}`;
-}
+import { BookmarkRecord, DocumentRecord } from "../types";
+import { formatDate, sortIndicator } from "../lib/listFormat";
 
 export function BookmarksScreen({ search }: { search: string }) {
   const {
     settings,
-    documents,
+    documentsById,
     bookmarks,
     foldersById,
     setActiveDocument,
@@ -28,7 +20,7 @@ export function BookmarksScreen({ search }: { search: string }) {
 
   const bookmarkRows = useMemo(() => {
     const joined = bookmarks
-      .map((bookmark) => ({ bookmark, document: documents.find((item) => item.documentId === bookmark.documentId) }))
+      .map((bookmark) => ({ bookmark, document: documentsById.get(bookmark.documentId) }))
       .filter((row): row is { bookmark: BookmarkRecord; document: DocumentRecord } => Boolean(row.document));
 
     const keyword = search.trim().toLowerCase();
@@ -44,12 +36,7 @@ export function BookmarksScreen({ search }: { search: string }) {
       if (sort.column === "page") return (a.bookmark.page - b.bookmark.page) * dir;
       return (a.bookmark.createdAt - b.bookmark.createdAt) * dir;
     });
-  }, [bookmarks, documents, settings.bookmarksSort, search]);
-
-  const sortIndicator = (sort: SortConfig, column: string) => {
-    if (sort.column !== column || sort.direction === "none") return "";
-    return sort.direction === "asc" ? " ▲" : " ▼";
-  };
+  }, [bookmarks, documentsById, settings.bookmarksSort, search]);
 
   return (
     <View style={styles.content}>
@@ -59,13 +46,13 @@ export function BookmarksScreen({ search }: { search: string }) {
           <Text style={[styles.thText, { color: theme.text }]}>폴더</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 4 }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accent : theme.text }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
+          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 2.5 }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accent : theme.text, textAlign: "center" }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
+          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.text, textAlign: "center" }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("bookmarks", "page")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "page" ? theme.accent : theme.text, textAlign: "center" }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
+          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.text, textAlign: "center" }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
         </Pressable>
       </View>
       <ScrollView>
@@ -74,7 +61,7 @@ export function BookmarksScreen({ search }: { search: string }) {
             <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
             <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
             <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(bookmark.createdAt)}</Text>
-            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accent }]}>p.{bookmark.page}</Text>
+            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>p.{bookmark.page}</Text>
           </Pressable>
         ))}
       </ScrollView>

@@ -3,23 +3,11 @@ import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextIn
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
-import { DocumentRecord, FolderRecord, LibraryRow, SortConfig, readingStatus } from "../types";
+import { DocumentRecord, FolderRecord, LibraryRow, readingStatus } from "../types";
 import { chooseSafFolder } from "../lib/safImport";
 import { pickDocuments } from "../lib/documentImport";
 import { replaceFolderDocuments, removeFolder } from "../lib/store";
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function formatDate(value?: number) {
-  if (!value) return "-";
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}.${month}.${day}`;
-}
+import { formatDate, sortIndicator } from "../lib/listFormat";
 
 export function LibraryScreen({ search }: { search: string }) {
   const {
@@ -32,7 +20,6 @@ export function LibraryScreen({ search }: { search: string }) {
     setActiveFolderId,
     setActiveDocument,
     refresh,
-    rescanFolders,
     updateSort,
   } = useAppContext();
 
@@ -106,11 +93,6 @@ export function LibraryScreen({ search }: { search: string }) {
     ]);
   }
 
-  const sortIndicator = (sort: SortConfig, column: string) => {
-    if (sort.column !== column || sort.direction === "none") return "";
-    return sort.direction === "asc" ? " ▲" : " ▼";
-  };
-
   return (
     <View style={styles.content}>
       {/* Folder Tabs */}
@@ -144,14 +126,7 @@ export function LibraryScreen({ search }: { search: string }) {
             );
           })}
           <Pressable style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={onImport} disabled={importing}>
-            <Text style={{ color: theme.accent, fontWeight: "800" }}>{importing ? "🔄 동기화 중" : "📁 + 폴더"}</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => void rescanFolders()}
-            disabled={importing}
-          >
-            <Text style={{ color: theme.text }}>🔄 재동기화</Text>
+            <Text style={{ color: theme.accentText, fontWeight: "800" }}>{importing ? "🔄 동기화 중" : "📁 + 폴더"}</Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -159,13 +134,13 @@ export function LibraryScreen({ search }: { search: string }) {
       {/* Table header */}
       <View style={[styles.tableHeader, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <Pressable style={[styles.thCell, { flex: 5 }]} onPress={() => void updateSort("library", "title")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "title" ? theme.accent : theme.text }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
+          <Text style={[styles.thText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 3 }]} onPress={() => void updateSort("library", "modifiedAt")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "modifiedAt" ? theme.accent : theme.text, textAlign: "center" }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
+          <Text style={[styles.thText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.text, textAlign: "center" }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
         </Pressable>
         <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("library", "status")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "status" ? theme.accent : theme.text, textAlign: "center" }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
+          <Text style={[styles.thText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.text, textAlign: "center" }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
         </Pressable>
       </View>
 

@@ -51,6 +51,7 @@ export const themeTokens: Record<ThemeName, {
   secondary: string;
   border: string;
   accent: string;
+  accentText: string;
   danger: string;
   unread: string;
   reading: string;
@@ -68,6 +69,7 @@ export const themeTokens: Record<ThemeName, {
     secondary: "#6F6856",
     border: "#D5C5A0",
     accent: "#9A5A10",
+    accentText: "#9A5A10",
     danger: "#B3342D",
     unread: "#6F6856",
     reading: "#9A5A10",
@@ -85,6 +87,7 @@ export const themeTokens: Record<ThemeName, {
     secondary: "#6B7280",
     border: "#E5E7EB",
     accent: "#4B5563",
+    accentText: "#4B5563",
     danger: "#B3261E",
     unread: "#6B7280",
     reading: "#4B5563",
@@ -102,6 +105,7 @@ export const themeTokens: Record<ThemeName, {
     secondary: "#AEB4BE",
     border: "#343842",
     accent: "#0F1115",
+    accentText: "#D1D5DB",
     danger: "#FFB4AB",
     unread: "#AEB4BE",
     reading: "#F3F4F6",
