@@ -29,12 +29,12 @@
 * **문서 열기 로딩:** 스플래시와 별도로, 선택한 문서의 페이지를 계산하는 동안 두루마리 일러스트, 앱명, 진행 바 및 `전체 페이지를 계산하는 중… n%` 상태를 표시한다. 계산이 끝나면 마지막 읽기 위치(없으면 첫 페이지)로 뷰어를 연다.
 
 ### 4.2 내 서재 (Library) - 로컬 폴더 전용
-* **화면 구조:** 상단에 앱명, 전체 도서 검색 입력창, 설정 버튼을 둔다. 본문은 `목록 / 히스토리 / 책갈피` 탭으로 전환하며, 선택 탭은 오렌지색 텍스트와 하단 인디케이터로 표시한다.
+* **화면 구조:** 목록 탭 상단에 현재 폴더의 제목 검색 입력창과 설정 버튼을 둔다. 본문은 `목록 / 히스토리 / 책갈피` 탭으로 전환하며, 선택 탭은 오렌지색 텍스트와 하단 인디케이터로 표시한다.
 * **폴더 추가:** `+ 추가`를 누르면 로컬 폴더 등록 다이얼로그를 연다. 다이얼로그는 로컬 폴더 선택 버튼, 선택 경로, 폴더 표시명, 닫기(X), 등록 버튼으로 구성한다. 등록 버튼은 유효한 SAF 폴더 권한·경로·표시명이 모두 있을 때만 활성화한다. 취소 또는 X는 변경 없이 닫는다.
 * **로컬 전용:** 구글 드라이브 선택 탭·아이콘·로그인·동기화 로직은 제공하지 않는다.
-* **폴더 동기화 및 변경 감지:** 등록한 폴더의 `.txt`, `.epub`, `.zip`, `.gz` 파일을 읽어 목록에 표시한다. 하위 폴더 스캔은 v1에서 지원하지 않는다. Android 네이티브 계층에서 선택한 SAF 트리 URI의 변경 이벤트를 구독하며, 생성·삭제·이름 변경·수정 이벤트를 받으면 해당 폴더를 즉시 증분 재스캔한다. SAF 제공자가 실시간 이벤트를 제공하지 않거나 앱이 백그라운드에 있었던 경우에는 앱 시작, 앱이 포그라운드로 복귀할 때, 해당 폴더 탭을 열 때 재스캔해 최종 정합성을 보장한다.
+* **폴더 동기화 및 변경 감지:** 등록한 폴더의 `.txt`, `.epub`, `.zip`, `.gz` 파일을 읽어 목록에 표시한다. 하위 폴더 스캔은 v1에서 지원하지 않는다. SAF `content://` 트리에는 Expo 파일 감시자를 사용할 수 없으므로 앱 시작과 포그라운드 복귀 시 전체 등록 폴더를 재스캔한다. 앱이 계속 포그라운드인 동안 외부에서 바뀐 파일이나 SAF 제공자가 변경 정보를 늦게 반영하는 경우를 위해 수동 `재동기화`를 유지한다.
 * **변경 반영 규칙:** 새 파일은 목록에 추가한다. 이름 또는 경로가 바뀐 파일은 콘텐츠 지문이 같으면 기존 `documentId`와 읽기 상태·책갈피를 유지한 채 메타데이터만 갱신한다. 삭제된 파일 또는 아카이브에서 사라진 내부 항목은 목록에서 즉시 제거하고, 연결된 히스토리와 책갈피도 같은 트랜잭션으로 삭제한다. 권한 오류나 일시적 스캔 실패는 삭제로 처리하지 않고 `동기화 실패` 상태와 재시도 동작을 표시한다.
-* **목록 표:** 등록 폴더는 제거 가능한 폴더 칩으로 표시한다. 목록 열은 `제목 / 파일 일자 / 상태`이며, 상태는 아래의 읽기 상태 판정 규칙에 따라 `미독`, `읽는 중`, `완독`으로 표시한다. 제목은 한 줄 말줄임 처리한다. 기본 정렬은 파일 일자 내림차순이며 제목·파일 일자·상태 헤더를 눌러 오름/내림차순을 전환한다. 검색은 제목과 폴더 표시명을 대상으로 한다.
+* **목록 표:** 등록 폴더는 제거 가능한 폴더 칩으로 표시한다. 최초에는 첫 번째 폴더를 선택하고 이후에는 설정에 저장한 마지막 선택 폴더를 복원한다. 목록 열은 `제목 / 파일 일자 / 상태`이며, 상태는 아래의 읽기 상태 판정 규칙에 따라 `미독`, `읽는 중`, `완독`으로 표시한다. 제목은 한 줄 말줄임 처리한다. 기본 정렬은 파일 일자 내림차순이며 제목·파일 일자·상태 헤더를 눌러 오름/내림차순을 전환한다. 검색은 현재 선택 폴더 안의 문서 제목만 대상으로 한다.
 * **읽기 상태 판정:**
   * **미독:** 문서를 열어보지 않았거나, 마지막 저장 페이지가 1페이지인 경우. 문서를 처음 열어 1페이지를 표시한 것만으로는 읽는 중으로 바꾸지 않는다.
   * **읽는 중:** 마지막 저장 페이지가 2페이지 이상이고 전체 페이지보다 작은 경우.
@@ -61,7 +61,7 @@
 * **캔버스 렌더링:** 한 페이지 분량의 텍스트가 정해지면, HTML5 `<canvas>`의 `fillText`를 사용하여 줄 단위로 직접 렌더링.
 * **페이지 넘김 조작 (Navigation):**
   * **Android 필수 입력:** 화면 가장자리 터치, 스와이프, 볼륨 키(설정에서 활성화한 방식만)를 통해 페이지 이동을 감지한다.
-  * **웹/데스크톱 보조 입력:** 방향키, 스페이스바, ESC, 마우스 오른쪽 버튼을 지원한다.
+  * **웹/데스크톱 보조 입력:** 방향키, 스페이스바, ESC, 마우스 오른쪽 버튼, 마우스 휠(위: 이전 페이지, 아래: 다음 페이지)을 지원한다.
   * 진동 또는 사운드 피드백은 설정값에 따라 제공하며, OS 권한·기기 지원 여부에 따라 사용할 수 없으면 조용히 생략한다.
   * 페이지 넘김 소리는 기존 정적 wav 파일을 우선 사용하지 않고, 코드로 합성한 짧은 효과음을 기본값으로 사용한다. 정적 오디오 파일은 합성 API가 실패하는 환경에서만 선택적 fallback으로 둔다.
 * **뷰어 팝업 메뉴:**
@@ -198,7 +198,7 @@ sequenceDiagram
 
 ### 5.3 RN ↔ WebView 브리지 계약
 * 모든 메시지는 `{ version, type, requestId, payload }` 형식을 사용하며, 현재 `version`은 `1`이다. `requestId`로 초기화·설정 변경·페이지 이동 요청과 응답을 연결한다.
-* RN → WebView 허용 타입은 `initializeDocument`, `updateSettings`, `goToPage`, `toggleBookmark`, `cancelLoading`, `disposeDocument`다. WebView → RN 허용 타입은 `ready`, `pageChanged`, `bookmarkChanged`, `loadingProgress`, `error`다.
+* RN → WebView 허용 타입은 `initializeDocument`, `updateSettings`, `goToPage`, `goToOffset`, `toggleBookmark`, `cancelLoading`, `disposeDocument`다. WebView → RN 허용 타입은 `ready`, `pageChanged`, `bookmarkChanged`, `menuRequested`, `loadingProgress`, `error`다.
 * `documentData`에는 정규화된 텍스트와 문서 메타데이터만 넣으며, 원본 HTML·외부 URL·실행 가능한 스크립트는 전달하지 않는다. 큰 문서는 한 번의 거대 메시지 대신 청크 또는 WebView 내부의 로컬 리소스 식별자로 전달한다.
 * `error` payload는 안정된 오류 코드(`PERMISSION_DENIED`, `UNSUPPORTED_FORMAT`, `ARCHIVE_LIMIT`, `PARSE_FAILED`, `PAGINATION_FAILED`)와 사용자 표시용 메시지 키를 포함한다. 예외 원문·문서 본문·전체 경로는 전달하거나 기록하지 않는다.
 
@@ -232,6 +232,100 @@ sequenceDiagram
   * 설정 초기화를 실행하면 `durumari-android-app` 기본값(나눔명조 18pt, 한지 테마, 진동, 책장 넘김 등)으로 돌아가고, 등록 폴더·히스토리·책갈피는 유지되는지.
   * 개별 폴더 해제와 폴더 전체 해제 시 원본 파일은 유지되고, 해제 대상 문서의 히스토리·책갈피·읽기 위치·완독 상태가 앱 내부에서 함께 삭제되는지.
   * 파일·폴더 삭제, 이름 변경, SAF 권한 철회 및 재부여 뒤에도 적절한 상태·복구 동작이 보이는지.
-  * 앱 실행 중 시스템 파일 앱에서 문서를 추가·수정·이름 변경·삭제했을 때 목록이 갱신되는지, 삭제된 문서의 히스토리·책갈피가 함께 즉시 제거되는지. 이벤트 미지원 제공자에서는 앱 포그라운드 복귀와 폴더 탭 재진입 시 동일하게 정리되는지.
+  * 시스템 파일 앱에서 문서를 추가·수정·이름 변경·삭제한 뒤 앱으로 복귀했을 때 목록이 갱신되고, 삭제된 문서의 히스토리·책갈피가 함께 제거되는지. 앱이 계속 포그라운드인 경우 수동 재동기화로 동일하게 정리되는지.
   * 화면 회전, 시스템 글자 크기 변경, TalkBack, 햅틱 미지원 기기에서 핵심 읽기·탭·팝업·확인/취소 동작을 완료할 수 있는지.
   * 중급 Android 10 기기에서 30 MB 이하 TXT의 초기 페이지 계산이 5초 이내이고, 긴 계산에는 진행률·취소가 제공되며 페이지 전환이 체감상 끊기지 않는지.
+
+## 8. 화면(Screen) 분리 및 컴포넌트 구조
+화면, 공통 UI, 전역 상태, 저장소 및 WebView 렌더러의 책임을 분리한다. 현재 앱은 Expo Router를 사용하지 않으며, `App.tsx`의 탭 상태와 `AppContext.activeDocument`를 이용해 화면을 전환한다.
+
+### 8.1 현재 소스 디렉터리
+
+```text
+App.tsx                              앱 부팅 및 최상위 화면 전환
+src/
+├─ screens/
+│  ├─ LibraryScreen.tsx              문서 보관함
+│  ├─ HistoryScreen.tsx              최근 읽은 문서
+│  ├─ BookmarksScreen.tsx            책갈피 목록
+│  └─ ViewerScreen.tsx               단일 문서 뷰어 셸
+├─ components/
+│  ├─ CanvasReader.tsx               RN ↔ WebView 어댑터
+│  ├─ IntroScroll.tsx                앱 초기화 화면
+│  ├─ SettingsModal.tsx              공통 설정 모달
+│  └─ EmptyState.tsx                 공통 빈 상태
+├─ contexts/
+│  └─ AppContext.tsx                 전역 앱 상태와 목록 갱신 동작
+├─ lib/
+│  ├─ store.ts                       SQLite 영속 저장소
+│  ├─ settings.ts                    기본 설정, 글꼴 및 테마 토큰
+│  ├─ safImport.ts                   Android SAF 폴더 선택·재스캔
+│  └─ documentImport.ts              파일 선택, 디코딩 및 문서 파싱
+├─ viewer/
+│  └─ canvasHtml.ts                  WebView Canvas 런타임 생성
+└─ types.ts                          공유 도메인 타입과 읽기 상태 판정
+```
+
+같은 디렉터리의 `*.test.ts`는 해당 모듈의 단위 테스트다. 생성 산출물인 `dist/`, `android/app/build/` 및 APK는 소스 구조에 포함하지 않는다.
+
+### 8.2 화면별 책임
+
+| 파일 | 입력 및 상태 | 주요 책임 | 직접 의존 계층 |
+|---|---|---|---|
+| `App.tsx` | `booting`, `tab`, `search`, `settingsOpen`, `AppContext` | 폰트와 저장소 초기화, 포그라운드 재스캔 구독, 검색창·탭·전역 설정 모달 표시, `IntroScroll`/목록 화면/`ViewerScreen` 전환 | `AppContext`, `store`, `safImport`, 공통 컴포넌트와 모든 화면 |
+| `src/screens/LibraryScreen.tsx` | `search` prop, 폴더·문서·읽기 상태 | 폴더 칩, 검색·필터·정렬, SAF/파일 가져오기, 폴더 표시명 확정, 개별 폴더 해제, 문서 열기 | `AppContext`, `safImport`, `documentImport`, `store`, `EmptyState` |
+| `src/screens/HistoryScreen.tsx` | 문서·히스토리·폴더 맵 | 히스토리 조인, 정렬, 날짜·진행률 표시, 문서 열기 | `AppContext`, `EmptyState` |
+| `src/screens/BookmarksScreen.tsx` | 문서·책갈피·폴더 맵 | 책갈피 조인, 정렬, 생성일·페이지 표시, 대상 문서 열기 | `AppContext`, `EmptyState` |
+| `src/screens/ViewerScreen.tsx` | `activeDocument`, 설정·읽기 상태·책갈피 | 본문 지연 로드, `CanvasReader` 구성, 읽기 상태 및 책갈피 저장, 페이지·목차·인코딩 이동, 로딩/오류 처리, 뷰어 설정과 종료 | `AppContext`, `CanvasReader`, `SettingsModal`, `store`, `documentImport` |
+
+`App.tsx`는 화면 공통 셸과 전환만 담당한다. 화면 고유 목록 계산, 모달 상태 및 사용자 동작은 각 `Screen`에 둔다. 화면은 SQLite를 직접 다루지 않고 `src/lib/store.ts`의 공개 함수만 호출한다.
+
+### 8.3 상태 소유권과 화면 전환
+
+* **전역 상태 (`AppContext`)**: `settings`, `draftSettings`, `folders`, `documents`, `readings`, `bookmarks`, `activeFolderId`, `activeDocument`를 소유한다. 파생 맵인 `readingsById`, `foldersById`와 `refresh`, `rescanFolders`, `updateSort`도 제공한다.
+* **루트 UI 상태 (`App.tsx`)**: 현재 탭, 전체 검색어, 부팅 진행 상태, 메인 설정 모달 열림 여부를 소유한다.
+* **화면 로컬 상태**: 가져오기 진행, 화면 전용 모달, 정렬 결과와 뷰어 메뉴·페이지 요청 등 다른 화면에서 공유할 필요가 없는 상태만 각 화면이 소유한다.
+* **목록 화면 전환**: `tab` 값이 `library`, `history`, `bookmarks` 중 하나로 바뀌면 대응하는 화면 하나를 렌더링한다.
+* **뷰어 진입/종료**: 목록에서 문서를 선택해 `activeDocument`를 설정하면 루트가 `ViewerScreen`을 렌더링한다. 뷰어에서 `activeDocument`를 `null`로 만들면 이전 목록 셸로 돌아간다.
+* **문서 본문 로드**: 목록의 `DocumentRecord`에 본문이 없으면 `ViewerScreen`이 `getDocumentText()`로 본문과 목차를 읽은 후 활성 문서를 갱신한다.
+
+### 8.4 공통 컴포넌트와 뷰어 내부 컴포넌트
+
+* `CanvasReader`: `DocumentRecord`, `ReaderSettings`, 초기 페이지와 책갈피를 WebView용 payload로 변환한다. 버전 1 브리지 메시지를 송수신하고 `ready`, 페이지 변경, 책갈피 변경, 메뉴 요청, 로딩 진행 및 오류를 React Native callback으로 전달한다.
+* `IntroScroll`: 앱 부팅 진행률과 상태 문구를 두루마리 애니메이션으로 표시한다.
+* `SettingsModal`: 메인 화면과 뷰어가 함께 사용하는 설정 편집 UI다. 확정·닫기·초기화·폴더 전체 해제 동작은 호출 화면이 callback으로 주입한다.
+* `EmptyState`: 제목, 설명과 선택적 동작 버튼을 받는 목록 공통 빈 상태다.
+* `ViewerMenuModal`, `ViewerLoadingOverlay`, `TocModal`, `PageNavigatorModal`은 별도 파일이 아니라 `ViewerScreen.tsx` 안에서만 사용하는 비공개 컴포넌트다. 다른 화면에서도 재사용하게 될 때 `src/components/`로 이동한다.
+
+### 8.5 계층 의존 규칙
+
+```text
+App.tsx
+  ├─ AppContext
+  ├─ screens/*
+  └─ components/*
+
+screens/* ──> AppContext, components/*, lib/*, types.ts
+AppContext ──> lib/store.ts, lib/safImport.ts, types.ts
+CanvasReader ──> viewer/canvasHtml.ts, types.ts
+lib/* ──> types.ts 및 Expo 네이티브 API
+```
+
+* `viewer/canvasHtml.ts`는 React Native 화면이나 컨텍스트를 import하지 않는다.
+* `lib/*`는 화면 컴포넌트를 import하지 않는다.
+* 화면 간에 서로를 직접 import하지 않는다. 공유 UI는 `components/*`, 공유 상태는 `AppContext`, 영속 동작은 `lib/*`를 통해 사용한다.
+* 새 최상위 화면을 추가하면 `src/screens/`에 두고, 화면 전환 지점과 상태 소유자를 이 절에 함께 기록한다.
+
+### 8.6 현재 구현과 요구사항의 차이
+
+다음 항목은 소스 분리와 무관하게 현재 코드가 4장의 요구사항을 아직 완전히 충족하지 못하는 지점이다.
+
+* 책갈피 행은 현재 `activeDocument`만 설정하므로 마지막 읽기 페이지로 열린다. 4.3의 요구사항처럼 저장한 책갈피 페이지로 이동하려면 뷰어 진입 요청에 `bookmark.page` 또는 진행률을 함께 전달해야 한다.
+* 뷰어에서 연 `SettingsModal`의 설정 초기화와 폴더 전체 해제 callback은 현재 빈 동작이다. 메인 설정 모달과 동일한 정책을 연결해야 한다.
+* 5.3의 대용량 문서 청크 전달은 목표 계약이다. 현재 초기 문서 본문은 `createCanvasHtml()` payload에 포함되므로, 성능 한도를 검증한 뒤 청크 또는 로컬 리소스 방식으로 교체해야 한다.
+
+### 8.7 문서 유지 규칙
+
+* 화면 파일을 추가·이동·삭제하거나 상태 소유권을 바꾸면 8.1~8.5를 같은 변경에서 갱신한다.
+* PRD의 기능 요구사항과 현재 구현이 다르면 요구사항을 지우지 않고 8.6에 구현 차이와 후속 작업을 기록한다.
+* 화면 분리 후에는 `npx tsc --noEmit`, `npm test -- --runInBand`, `npx expo-doctor`, Android Metro 번들 및 릴리스 빌드로 import 경계와 네이티브 구성을 검증한다.

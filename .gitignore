@@ -25,7 +25,10 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-.expo-web.*.log
+.expo-*.log
+dist-build-check/
+*.apk
+*.reconstructed
 
 # macOS
 .DS_Store

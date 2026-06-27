@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SQLite from "expo-sqlite";
+import { Platform } from "react-native";
 import type {
   BookmarkRecord,
   DocumentRecord,
@@ -11,10 +12,34 @@ import { defaultSettings } from "./settings";
 
 const SETTINGS_KEY = "durumari.settings";
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let writeQueue: Promise<void> = Promise.resolve();
 
 function db() {
   dbPromise ??= SQLite.openDatabaseAsync("durumari.db");
   return dbPromise;
+}
+
+function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = writeQueue.then(operation, operation);
+  writeQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+function writeTransaction<T>(task: (transaction: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  return enqueueWrite(async () => {
+    const database = await db();
+    let result!: T;
+    if (Platform.OS === "web") {
+      await database.withTransactionAsync(async () => {
+        result = await task(database);
+      });
+    } else {
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        result = await task(transaction);
+      });
+    }
+    return result;
+  });
 }
 
 export async function initStore() {
@@ -63,6 +88,7 @@ export async function initStore() {
       FOREIGN KEY(documentId) REFERENCES documents(documentId) ON DELETE CASCADE
     );
   `);
+  try { await database.execAsync("ALTER TABLE documents ADD COLUMN toc TEXT;"); } catch {}
 }
 
 export async function loadSettings(): Promise<ReaderSettings> {
@@ -85,47 +111,8 @@ export async function resetSettings() {
 }
 
 export async function upsertFolder(folder: FolderRecord) {
-  const database = await db();
-  await database.runAsync(
-    `INSERT OR REPLACE INTO folders
-      (folderId, treeUri, displayName, createdAt, lastSyncedAt, permissionStatus)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-    folder.folderId,
-    folder.treeUri,
-    folder.displayName,
-    folder.createdAt,
-    folder.lastSyncedAt ?? null,
-    folder.permissionStatus,
-  );
-}
-
-export async function upsertDocuments(documents: DocumentRecord[]) {
-  if (!documents.length) return;
-  const database = await db();
-  await database.withTransactionAsync(async () => {
-    for (const document of documents) {
-      await database.runAsync(
-        `INSERT OR REPLACE INTO documents
-          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        document.documentId,
-        document.folderId,
-        document.sourceUri,
-        document.archiveEntryPath ?? null,
-        document.title,
-        document.kind,
-        document.fileSize,
-        document.modifiedAt,
-        document.contentHash,
-        document.text ?? null,
-      );
-    }
-  });
-}
-
-export async function replaceFolderDocuments(folder: FolderRecord, documents: DocumentRecord[]) {
-  const database = await db();
-  await database.withTransactionAsync(async () => {
+  await enqueueWrite(async () => {
+    const database = await db();
     await database.runAsync(
       `INSERT OR REPLACE INTO folders
         (folderId, treeUri, displayName, createdAt, lastSyncedAt, permissionStatus)
@@ -137,22 +124,28 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
       folder.lastSyncedAt ?? null,
       folder.permissionStatus,
     );
-    const existing = await database.getAllAsync<{ documentId: string }>(
-      "SELECT documentId FROM documents WHERE folderId = ?",
-      folder.folderId,
-    );
-    const nextIds = new Set(documents.map((document) => document.documentId));
-    for (const row of existing) {
-      if (nextIds.has(row.documentId)) continue;
-      await database.runAsync("DELETE FROM bookmarks WHERE documentId = ?", row.documentId);
-      await database.runAsync("DELETE FROM readings WHERE documentId = ?", row.documentId);
-      await database.runAsync("DELETE FROM documents WHERE documentId = ?", row.documentId);
-    }
+  });
+}
+
+export async function upsertDocuments(documents: DocumentRecord[]) {
+  if (!documents.length) return;
+  await writeTransaction(async (transaction) => {
     for (const document of documents) {
-      await database.runAsync(
-        `INSERT OR REPLACE INTO documents
-          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      await transaction.runAsync(
+        `INSERT INTO documents
+          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(documentId) DO UPDATE SET
+            folderId = excluded.folderId,
+            sourceUri = excluded.sourceUri,
+            archiveEntryPath = excluded.archiveEntryPath,
+            title = excluded.title,
+            kind = excluded.kind,
+            fileSize = CASE WHEN excluded.fileSize > 0 THEN excluded.fileSize ELSE documents.fileSize END,
+            modifiedAt = excluded.modifiedAt,
+            contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
+            text = COALESCE(excluded.text, documents.text),
+            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
         document.documentId,
         document.folderId,
         document.sourceUri,
@@ -163,7 +156,82 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         document.modifiedAt,
         document.contentHash,
         document.text ?? null,
+        document.toc ? JSON.stringify(document.toc) : null,
       );
+    }
+  });
+}
+
+export async function replaceFolderDocuments(folder: FolderRecord, documents: DocumentRecord[]) {
+  await writeTransaction(async (transaction) => {
+    await transaction.runAsync(
+      `INSERT OR REPLACE INTO folders
+        (folderId, treeUri, displayName, createdAt, lastSyncedAt, permissionStatus)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+      folder.folderId,
+      folder.treeUri,
+      folder.displayName,
+      folder.createdAt,
+      folder.lastSyncedAt ?? null,
+      folder.permissionStatus,
+    );
+    const existing = await transaction.getAllAsync<{ documentId: string; contentHash: string }>(
+      "SELECT documentId, contentHash FROM documents WHERE folderId = ?",
+      folder.folderId,
+    );
+    const nextIds = new Set(documents.map((document) => document.documentId));
+    const existingIds = new Set(existing.map((document) => document.documentId));
+    for (const document of documents) {
+      await transaction.runAsync(
+        `INSERT INTO documents
+          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(documentId) DO UPDATE SET
+            folderId = excluded.folderId,
+            sourceUri = excluded.sourceUri,
+            archiveEntryPath = excluded.archiveEntryPath,
+            title = excluded.title,
+            kind = excluded.kind,
+            fileSize = CASE WHEN excluded.fileSize > 0 THEN excluded.fileSize ELSE documents.fileSize END,
+            modifiedAt = excluded.modifiedAt,
+            contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
+            text = COALESCE(excluded.text, documents.text),
+            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
+        document.documentId,
+        document.folderId,
+        document.sourceUri,
+        document.archiveEntryPath ?? null,
+        document.title,
+        document.kind,
+        document.fileSize,
+        document.modifiedAt,
+        document.contentHash,
+        document.text ?? null,
+        document.toc ? JSON.stringify(document.toc) : null,
+      );
+    }
+    const migratedOldIds = new Set<string>();
+    const usedHashes = new Set<string>();
+    for (const document of documents) {
+      if (existingIds.has(document.documentId) || usedHashes.has(document.contentHash)) continue;
+      const match = existing.find((item) => (
+        item.contentHash === document.contentHash
+        && item.documentId !== document.documentId
+        && !nextIds.has(item.documentId)
+        && !migratedOldIds.has(item.documentId)
+      ));
+      if (!match) continue;
+      await transaction.runAsync("UPDATE readings SET documentId = ? WHERE documentId = ?", document.documentId, match.documentId);
+      await transaction.runAsync("UPDATE bookmarks SET documentId = ? WHERE documentId = ?", document.documentId, match.documentId);
+      await transaction.runAsync("DELETE FROM documents WHERE documentId = ?", match.documentId);
+      migratedOldIds.add(match.documentId);
+      usedHashes.add(document.contentHash);
+    }
+    for (const row of existing) {
+      if (nextIds.has(row.documentId) || migratedOldIds.has(row.documentId)) continue;
+      await transaction.runAsync("DELETE FROM bookmarks WHERE documentId = ?", row.documentId);
+      await transaction.runAsync("DELETE FROM readings WHERE documentId = ?", row.documentId);
+      await transaction.runAsync("DELETE FROM documents WHERE documentId = ?", row.documentId);
     }
   });
 }
@@ -175,7 +243,40 @@ export async function listFolders(): Promise<FolderRecord[]> {
 
 export async function listDocuments(): Promise<DocumentRecord[]> {
   const database = await db();
-  return database.getAllAsync<DocumentRecord>("SELECT * FROM documents ORDER BY modifiedAt DESC");
+  // Exclude text column to prevent OOM with large libraries
+  const rows = await database.getAllAsync<any>(
+    "SELECT documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, toc FROM documents ORDER BY modifiedAt DESC"
+  );
+  return rows.map((row) => ({
+    ...row,
+    toc: row.toc ? JSON.parse(row.toc) : undefined,
+  }));
+}
+
+/** Load full document text on demand (when entering viewer) */
+export async function getDocumentText(documentId: string): Promise<{ text?: string; toc?: any }> {
+  const database = await db();
+  const row = await database.getFirstAsync<{ text: string | null; toc: string | null }>(
+    "SELECT text, toc FROM documents WHERE documentId = ?",
+    documentId,
+  );
+  if (!row) return {};
+  return {
+    text: row.text ?? undefined,
+    toc: row.toc ? JSON.parse(row.toc) : undefined,
+  };
+}
+
+/** Update folder display name */
+export async function updateFolderDisplayName(folderId: string, displayName: string) {
+  await enqueueWrite(async () => {
+    const database = await db();
+    await database.runAsync(
+      "UPDATE folders SET displayName = ? WHERE folderId = ?",
+      displayName,
+      folderId,
+    );
+  });
 }
 
 export async function listReadings(): Promise<ReadingRecord[]> {
@@ -190,69 +291,70 @@ export async function listBookmarks(): Promise<BookmarkRecord[]> {
 }
 
 export async function saveReading(reading: ReadingRecord) {
-  const database = await db();
-  await database.runAsync(
-    `INSERT OR REPLACE INTO readings
-      (documentId, lastPage, totalPages, progress, openedAt, completed, completedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    reading.documentId,
-    reading.lastPage,
-    reading.totalPages,
-    reading.progress,
-    reading.openedAt,
-    reading.completed ? 1 : 0,
-    reading.completedAt ?? null,
-  );
+  await enqueueWrite(async () => {
+    const database = await db();
+    await database.runAsync(
+      `INSERT OR REPLACE INTO readings
+        (documentId, lastPage, totalPages, progress, openedAt, completed, completedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      reading.documentId,
+      reading.lastPage,
+      reading.totalPages,
+      reading.progress,
+      reading.openedAt,
+      reading.completed ? 1 : 0,
+      reading.completedAt ?? null,
+    );
+  });
 }
 
 export async function toggleBookmark(bookmark: BookmarkRecord) {
-  const database = await db();
-  const existing = await database.getFirstAsync<{ bookmarkId: string }>(
-    "SELECT bookmarkId FROM bookmarks WHERE documentId = ? AND page = ?",
-    bookmark.documentId,
-    bookmark.page,
-  );
-  if (existing) {
-    await database.runAsync("DELETE FROM bookmarks WHERE bookmarkId = ?", existing.bookmarkId);
-    return false;
-  }
-  await database.runAsync(
-    `INSERT INTO bookmarks
-      (bookmarkId, documentId, page, totalPages, progress, preview, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    bookmark.bookmarkId,
-    bookmark.documentId,
-    bookmark.page,
-    bookmark.totalPages,
-    bookmark.progress,
-    bookmark.preview,
-    bookmark.createdAt,
-  );
-  return true;
+  return writeTransaction(async (transaction) => {
+    const existing = await transaction.getFirstAsync<{ bookmarkId: string }>(
+      "SELECT bookmarkId FROM bookmarks WHERE documentId = ? AND page = ?",
+      bookmark.documentId,
+      bookmark.page,
+    );
+    if (existing) {
+      await transaction.runAsync("DELETE FROM bookmarks WHERE bookmarkId = ?", existing.bookmarkId);
+      return false;
+    }
+    await transaction.runAsync(
+      `INSERT INTO bookmarks
+        (bookmarkId, documentId, page, totalPages, progress, preview, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      bookmark.bookmarkId,
+      bookmark.documentId,
+      bookmark.page,
+      bookmark.totalPages,
+      bookmark.progress,
+      bookmark.preview,
+      bookmark.createdAt,
+    );
+    return true;
+  });
 }
 
 export async function removeFolder(folderId: string) {
-  const database = await db();
-  await database.withTransactionAsync(async () => {
-    const docs = await database.getAllAsync<{ documentId: string }>(
+  await writeTransaction(async (transaction) => {
+    const docs = await transaction.getAllAsync<{ documentId: string }>(
       "SELECT documentId FROM documents WHERE folderId = ?",
       folderId,
     );
     for (const doc of docs) {
-      await database.runAsync("DELETE FROM bookmarks WHERE documentId = ?", doc.documentId);
-      await database.runAsync("DELETE FROM readings WHERE documentId = ?", doc.documentId);
+      await transaction.runAsync("DELETE FROM bookmarks WHERE documentId = ?", doc.documentId);
+      await transaction.runAsync("DELETE FROM readings WHERE documentId = ?", doc.documentId);
     }
-    await database.runAsync("DELETE FROM documents WHERE folderId = ?", folderId);
-    await database.runAsync("DELETE FROM folders WHERE folderId = ?", folderId);
+    await transaction.runAsync("DELETE FROM documents WHERE folderId = ?", folderId);
+    await transaction.runAsync("DELETE FROM folders WHERE folderId = ?", folderId);
   });
 }
 
 export async function clearFolders() {
-  const database = await db();
-  await database.withTransactionAsync(async () => {
-    await database.runAsync("DELETE FROM bookmarks");
-    await database.runAsync("DELETE FROM readings");
-    await database.runAsync("DELETE FROM documents");
-    await database.runAsync("DELETE FROM folders");
+  await writeTransaction(async (transaction) => {
+    await transaction.runAsync("DELETE FROM bookmarks");
+    await transaction.runAsync("DELETE FROM readings");
+    await transaction.runAsync("DELETE FROM documents");
+    await transaction.runAsync("DELETE FROM folders");
   });
 }

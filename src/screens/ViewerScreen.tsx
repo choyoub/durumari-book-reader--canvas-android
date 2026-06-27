@@ -1,0 +1,589 @@
+import React, { useEffect, useState } from "react";
+import { BackHandler, DeviceEventEmitter, Modal, NativeModules, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Haptics from "expo-haptics";
+
+import { CanvasReader } from "../components/CanvasReader";
+import { ScrollArtwork } from "../components/IntroScroll";
+import { SettingsModal } from "../components/SettingsModal";
+import { ThemedScreen } from "../components/ThemedScreen";
+import { useAppContext } from "../contexts/AppContext";
+import { DocumentRecord } from "../types";
+import { themeTokens } from "../lib/settings";
+import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, saveSettings } from "../lib/store";
+import { hydrateDocumentFromBytes } from "../lib/documentImport";
+import { readSafBytes } from "../lib/safImport";
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function makeBookmarkId(documentId: string, page: number) {
+  return `${documentId}:p${page}:${Date.now()}`;
+}
+
+async function loadViewerDocument(document: DocumentRecord, forceEncoding?: string) {
+  if (!forceEncoding) {
+    const stored = await getDocumentText(document.documentId);
+    if (stored.text !== undefined) return { ...document, ...stored };
+  }
+
+  const bytes = await readSafBytes(document.sourceUri);
+  const hydrated = await hydrateDocumentFromBytes(document, bytes, forceEncoding);
+  await upsertDocuments([hydrated]);
+  return hydrated;
+}
+
+// ----------------- Viewer Modals -----------------
+
+function ViewerMenuModal({
+  visible, title, current, total, theme, onClose, onBookmark, onNavigate, onSettings, onExit, hasToc, onToc, onEncodingChange,
+}: any) {
+  const ratio = total <= 1 ? 0 : (current - 1) / Math.max(1, total - 1);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.centerBackdrop}>
+        <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.modalTitle}>
+            <View style={styles.readerTitleWrap}>
+              <Text numberOfLines={1} style={[styles.modalHeading, { color: theme.text }]}>{title}</Text>
+              <Text style={[styles.readerMeta, { color: theme.secondary }]}>p.{current} / {total}</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="메뉴 닫기">
+              <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+            <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` }]} />
+          </View>
+          <View style={styles.viewerActions}>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onBookmark} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>🔖</Text>
+              <Text style={{ color: theme.text }}>책갈피</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.viewerAction, { borderColor: theme.border, opacity: hasToc ? 1 : 0.4 }]}
+              onPress={onToc}
+              disabled={!hasToc}
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewerActionIcon}>📑</Text>
+              <Text style={{ color: theme.text }}>목차</Text>
+            </Pressable>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onNavigate} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>🧭</Text>
+              <Text style={{ color: theme.text }}>이동</Text>
+            </Pressable>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onSettings} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>⚙️</Text>
+              <Text style={{ color: theme.text }}>설정</Text>
+            </Pressable>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onExit} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>📚</Text>
+              <Text style={{ color: theme.text }}>목록</Text>
+            </Pressable>
+            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onEncodingChange} accessibilityRole="button">
+              <Text style={styles.viewerActionIcon}>🔤</Text>
+              <Text style={{ color: theme.text }}>인코딩</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClose, onAnimationComplete }: any) {
+  const safeProgress = Math.max(0, Math.min(1, progress));
+  if (error) {
+    return (
+      <View style={[styles.viewerLoading, { backgroundColor: theme.outer }]}>
+        <View style={{ alignItems: "center", padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
+          <Text style={{ color: theme.accent, fontSize: 18, marginBottom: 8, fontWeight: "700" }}>문서를 열 수 없습니다</Text>
+          <Text style={{ fontSize: 14, color: theme.secondary, marginBottom: 24, textAlign: "center" }}>{error.message}</Text>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Pressable style={[styles.popupButton, { borderColor: theme.border, flex: 1, alignItems: "center" }]} onPress={onClose}>
+              <Text style={{ color: theme.text }}>목록으로</Text>
+            </Pressable>
+            <Pressable style={[styles.popupButton, { borderColor: theme.border, backgroundColor: theme.accent, flex: 1, alignItems: "center" }]} onPress={onRetry}>
+              <Text style={{ color: "#FFF", fontWeight: "700" }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.viewerLoading, { backgroundColor: theme.outer }]}>
+      <View style={styles.viewerLoadingArtwork}>
+        <ScrollArtwork compact onAnimationComplete={onAnimationComplete} />
+      </View>
+      <View style={styles.viewerLoadingFooter}>
+        <Text style={[styles.viewerLoadingTitle, { color: theme.text }]}>문서를 펼치는 중</Text>
+        <View style={[styles.viewerLoadingTrack, { backgroundColor: theme.border }]}>
+          <View
+            style={[
+              styles.viewerLoadingFill,
+              { backgroundColor: theme.accent, width: `${Math.round(safeProgress * 100)}%` },
+            ]}
+          />
+        </View>
+        <Text style={[styles.viewerLoadingText, { color: theme.secondary }]}>
+          {message.includes("%") ? message : `${message} ${Math.round(safeProgress * 100)}%`}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: "80%" }]}>
+          <View style={styles.modalTitle}>
+            <Text style={[styles.modalHeading, { color: theme.text }]}>목차</Text>
+            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="목차 닫기">
+              <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {toc?.map((item: any, index: number) => (
+              <Pressable
+                key={index}
+                style={{ paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }}
+                onPress={() => onSelect(item.charOffset)}
+              >
+                <Text style={{ color: theme.text, fontSize: 16 }}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, onChange, onClose, onGo }: any) {
+  const numeric = clamp(Number(value) || current, 1, Math.max(1, total));
+  const sorted = [...bookmarks].sort((a: any, b: any) => a.page - b.page);
+  const previous = [...sorted].reverse().find((item) => item.page < current);
+  const next = sorted.find((item) => item.page > current);
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={styles.centerBackdrop}>
+        <View style={[styles.pageDialog, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.modalTitle}>
+            <Text style={[styles.modalHeading, { color: theme.text }]}>페이지 이동</Text>
+            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="화면 이동 닫기">
+              <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
+            </Pressable>
+          </View>
+          <View style={styles.pageInputRow}>
+            <TextInput
+              value={value}
+              onChangeText={(text) => onChange(text.replace(/[^0-9]/g, ""))}
+              keyboardType="number-pad"
+              style={[styles.pageInput, { color: theme.text, borderColor: theme.border }]}
+            />
+            <Text style={{ color: theme.secondary }}>/ {total}</Text>
+          </View>
+          <View style={styles.quickGrid}>
+            <Pressable style={[styles.secondaryButton, { borderColor: theme.border }]} onPress={() => onGo(1)}>
+              <Text style={{ color: theme.text }}>처음</Text>
+            </Pressable>
+            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: previous ? 1 : .45 }]} disabled={!previous} onPress={() => previous && onGo(previous.page)}>
+              <Text style={{ color: theme.text }}>이전 책갈피</Text>
+            </Pressable>
+            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: next ? 1 : .45 }]} disabled={!next} onPress={() => next && onGo(next.page)}>
+              <Text style={{ color: theme.text }}>다음 책갈피</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={() => onGo(numeric)} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
+            <Text style={styles.accentButtonText}>이동하기</Text>
+          </Pressable>
+          <Text style={[styles.pageHint, { color: theme.secondary }]}>현재 p.{current}</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ----------------- Main Viewer Screen -----------------
+
+export function ViewerScreen() {
+  const {
+    settings,
+    setSettings,
+    activeDocument,
+    setActiveDocument,
+    readingsById,
+    bookmarks,
+    refresh,
+  } = useAppContext();
+
+  const theme = themeTokens[settings.theme];
+
+  const [viewerLoading, setViewerLoading] = useState<{ active: boolean; progress: number; message: string; error?: { code: string; message: string } }>({
+    active: true,
+    progress: 0,
+    message: "전체 페이지를 계산하는 중...",
+  });
+  const [viewerReady, setViewerReady] = useState(false);
+  const [viewerAnimationComplete, setViewerAnimationComplete] = useState(false);
+  
+  const activeReading = activeDocument ? readingsById.get(activeDocument.documentId) : null;
+  const initialPage = activeReading?.lastPage || 1;
+  const [viewerPage, setViewerPage] = useState({ current: initialPage, total: 1, offset: 0 });
+  const [bookmarkSignal, setBookmarkSignal] = useState(0);
+  const [pageNavigatorOpen, setPageNavigatorOpen] = useState(false);
+  const [viewerMenuOpen, setViewerMenuOpen] = useState(false);
+  const [tocModalOpen, setTocModalOpen] = useState(false);
+  const [encodingModalOpen, setEncodingModalOpen] = useState(false);
+  const [pageDraft, setPageDraft] = useState("1");
+  const [pageRequest, setPageRequest] = useState<{ signal: number; page: number }>({ signal: 0, page: 1 });
+  const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+
+
+  // Settings Modal state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [draftSettings, setDraftSettings] = useState(settings);
+
+  useEffect(() => {
+    if (!viewerReady || !viewerAnimationComplete) return;
+    setViewerLoading((previous) => (
+      previous.error
+        ? previous
+        : { ...previous, active: false, progress: 1, message: "준비 완료" }
+    ));
+  }, [viewerAnimationComplete, viewerReady]);
+
+  useEffect(() => {
+    const handleBack = () => {
+      if (encodingModalOpen) setEncodingModalOpen(false);
+      else if (tocModalOpen) setTocModalOpen(false);
+      else if (pageNavigatorOpen) setPageNavigatorOpen(false);
+      else if (settingsOpen) setSettingsOpen(false);
+      else if (viewerMenuOpen) setViewerMenuOpen(false);
+      else setActiveDocument(null);
+      return true;
+    };
+
+    const backSub = BackHandler.addEventListener("hardwareBackPress", handleBack);
+
+    return () => {
+      backSub.remove();
+    };
+  }, [encodingModalOpen, pageNavigatorOpen, setActiveDocument, settingsOpen, tocModalOpen, viewerMenuOpen]);
+
+  useEffect(() => {
+    const document = activeDocument;
+    if (!document || document.text !== undefined) return;
+
+    let cancelled = false;
+    setViewerReady(false);
+    setViewerLoading({ active: true, progress: 0, message: "본문을 불러오는 중..." });
+    void loadViewerDocument(document)
+      .then((hydrated) => {
+        if (cancelled) return;
+        setActiveDocument(hydrated);
+        void refresh();
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setViewerLoading({
+          active: true,
+          progress: 0,
+          message: "",
+          error: {
+            code: "FETCH_ERR",
+            message: error instanceof Error ? error.message : "본문을 불러오지 못했습니다.",
+          },
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDocument?.documentId, loadAttempt, refresh, setActiveDocument]);
+
+  useEffect(() => {
+    if (NativeModules.VolumeKeyModule) {
+      NativeModules.VolumeKeyModule.setVolumeKeyPaging(settings.volumeKeyPaging, true);
+    }
+    const subscription = DeviceEventEmitter.addListener("onVolumeKey", (action: "volumeUp" | "volumeDown") => {
+      if (!settings.volumeKeyPaging || !activeDocument) return;
+      const { current, total } = viewerPage;
+      if (action === "volumeDown") {
+        if (current < total) setPageRequest({ signal: Date.now(), page: current + 1 });
+        else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      } else if (action === "volumeUp") {
+        if (current > 1) setPageRequest({ signal: Date.now(), page: current - 1 });
+        else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+    });
+    return () => {
+      subscription.remove();
+      if (NativeModules.VolumeKeyModule) {
+        NativeModules.VolumeKeyModule.setVolumeKeyPaging(false, false);
+      }
+    };
+  }, [settings.volumeKeyPaging, activeDocument, viewerPage]);
+
+
+
+  async function onPageChanged(payload: { currentPage: number; totalPages: number; progress: number; completed?: boolean; preview?: string; boundary?: boolean; }) {
+    if (!activeDocument || payload.boundary) {
+      if (settings.pageTurnFeedback === "vibration") void Haptics.selectionAsync();
+      return;
+    }
+    setViewerPage(prev => ({ current: payload.currentPage, total: payload.totalPages, offset: prev.offset }));
+    const prior = readingsById.get(activeDocument.documentId);
+    const completed = Boolean(prior?.completed || payload.completed);
+    await saveReading({
+      documentId: activeDocument.documentId,
+      lastPage: payload.currentPage,
+      totalPages: payload.totalPages,
+      progress: payload.progress,
+      openedAt: Date.now(),
+      completed,
+      completedAt: completed ? (prior?.completedAt ?? Date.now()) : undefined,
+    });
+    if (settings.pageTurnFeedback === "vibration") void Haptics.selectionAsync();
+    await refresh();
+  }
+
+  async function onBookmarkChanged(payload: { active: boolean; page: number; totalPages: number; progress: number; preview?: string; }) {
+    if (!activeDocument) return;
+    await toggleBookmark({
+      bookmarkId: makeBookmarkId(activeDocument.documentId, payload.page),
+      documentId: activeDocument.documentId,
+      page: payload.page,
+      totalPages: payload.totalPages,
+      progress: payload.progress,
+      preview: payload.preview || activeDocument.title,
+      createdAt: Date.now(),
+    });
+    await refresh();
+  }
+
+  async function changeEncoding(encoding: string) {
+    if (!activeDocument) return;
+    setEncodingModalOpen(false);
+    setViewerMenuOpen(false);
+    setViewerReady(false);
+    setViewerAnimationComplete(false);
+    setViewerLoading({ active: true, progress: 0, message: "새로운 인코딩으로 문서를 불러오는 중..." });
+    try {
+      const newDoc = await loadViewerDocument(activeDocument, encoding);
+      await refresh();
+      setActiveDocument(newDoc);
+    } catch (error) {
+      setViewerLoading((prev) => ({ ...prev, active: true, error: { code: "ENCODING_FAILED", message: error instanceof Error ? error.message : "인코딩 재적용에 실패했습니다." } }));
+    }
+  }
+
+  async function confirmSettings() {
+    await saveSettings(draftSettings);
+    setSettings(draftSettings);
+    setSettingsOpen(false);
+  }
+
+  if (!activeDocument) return null;
+
+  return (
+    <ThemedScreen theme={theme} contentColor={theme.outer} contentStyle={styles.readerShell}>
+        {activeDocument.text ? (
+          <CanvasReader
+            key={activeDocument.documentId}
+            document={activeDocument}
+            settings={settings}
+            initialPage={initialPage}
+            bookmarks={bookmarks}
+            onReady={(currentPage, totalPages, offset) => {
+              setViewerPage({ current: currentPage, total: totalPages, offset: offset || 0 });
+              setViewerReady(true);
+              setViewerLoading((previous) => ({
+                ...previous,
+                active: true,
+                progress: 1,
+                message: "준비 완료",
+                error: undefined,
+              }));
+            }}
+            onPageChanged={onPageChanged}
+            onBookmarkChanged={onBookmarkChanged}
+            onMenuRequested={() => setViewerMenuOpen(true)}
+            onLoadingProgress={(payload) => setViewerLoading((previous) => ({
+              ...previous,
+              active: !(viewerReady && viewerAnimationComplete),
+              progress: payload.progress,
+              message: payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`,
+              error: undefined,
+            }))}
+            onError={(payload) => {
+              setViewerReady(false);
+              setViewerLoading((prev) => ({ ...prev, active: true, error: payload }));
+            }}
+            bookmarkSignal={bookmarkSignal}
+            pageRequest={pageRequest}
+            offsetRequest={offsetRequest}
+          />
+        ) : null}
+        
+        {viewerLoading.active ? (
+          <ViewerLoadingOverlay
+            theme={theme}
+            progress={viewerLoading.progress}
+            message={viewerLoading.message}
+            error={viewerLoading.error}
+            onAnimationComplete={() => setViewerAnimationComplete(true)}
+            onRetry={() => {
+              setViewerReady(false);
+              setViewerAnimationComplete(false);
+              setViewerLoading({ active: true, progress: 0, message: "다시 불러오는 중..." });
+              setLoadAttempt((attempt) => attempt + 1);
+            }}
+            onClose={() => setActiveDocument(null)}
+          />
+        ) : null}
+
+        {viewerMenuOpen && (
+          <ViewerMenuModal
+            visible={viewerMenuOpen}
+            title={activeDocument.title}
+            current={viewerPage.current}
+            total={viewerPage.total}
+            theme={theme}
+            onClose={() => setViewerMenuOpen(false)}
+            onBookmark={() => {
+              setViewerMenuOpen(false);
+              setBookmarkSignal((value) => value + 1);
+            }}
+            onNavigate={() => {
+              setViewerMenuOpen(false);
+              setPageDraft(String(viewerPage.current));
+              setPageNavigatorOpen(true);
+            }}
+            onSettings={() => {
+              setViewerMenuOpen(false);
+              setDraftSettings(settings);
+              setSettingsOpen(true);
+            }}
+            onExit={() => {
+              setActiveDocument(null);
+              setViewerMenuOpen(false);
+            }}
+            hasToc={!!activeDocument.toc?.length}
+            onToc={() => {
+              setViewerMenuOpen(false);
+              setTocModalOpen(true);
+            }}
+            onEncodingChange={() => {
+              setViewerMenuOpen(false);
+              setEncodingModalOpen(true);
+            }}
+          />
+        )}
+
+        {encodingModalOpen && (
+          <Modal visible={encodingModalOpen} transparent animationType="fade" onRequestClose={() => setEncodingModalOpen(false)}>
+            <View style={styles.centerBackdrop}>
+              <View style={{ padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16 }}>인코딩 다시 선택</Text>
+                <View style={{ gap: 8 }}>
+                  {["utf8", "euc-kr", "cp949", "utf16-le", "utf16-be"].map((enc) => (
+                    <Pressable key={enc} style={[styles.popupButton, { borderColor: theme.border, alignItems: "center" }]} onPress={() => changeEncoding(enc)}>
+                      <Text style={{ color: theme.text }}>{enc.toUpperCase()}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable style={[styles.popupButton, { borderColor: theme.border, marginTop: 16, backgroundColor: theme.outer, alignItems: "center" }]} onPress={() => setEncodingModalOpen(false)}>
+                  <Text style={{ color: theme.text }}>취소</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {tocModalOpen && (
+          <TocModal
+            visible={tocModalOpen}
+            toc={activeDocument.toc}
+            theme={theme}
+            onClose={() => setTocModalOpen(false)}
+            onSelect={(offset: number) => {
+              setTocModalOpen(false);
+              setOffsetRequest({ signal: Date.now(), offset });
+            }}
+          />
+        )}
+
+        {pageNavigatorOpen && (
+          <PageNavigatorModal
+            visible={pageNavigatorOpen}
+            current={viewerPage.current}
+            total={viewerPage.total}
+            value={pageDraft}
+            theme={theme}
+            bookmarks={bookmarks.filter((item) => item.documentId === activeDocument.documentId)}
+            onChange={setPageDraft}
+            onClose={() => setPageNavigatorOpen(false)}
+            onGo={(page: number) => {
+              setPageNavigatorOpen(false);
+              setPageRequest({ signal: Date.now(), page });
+            }}
+          />
+        )}
+
+        {settingsOpen && (
+          <SettingsModal
+            visible={settingsOpen}
+            settings={draftSettings}
+            theme={themeTokens[draftSettings.theme]}
+            onChange={setDraftSettings}
+            onClose={() => setSettingsOpen(false)}
+            onConfirm={confirmSettings}
+            onReset={() => {}} 
+            onClearFolders={() => {}} 
+          />
+        )}
+    </ThemedScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  readerShell: { flex: 1 },
+  centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
+  viewerMenu: { width: "86%", maxWidth: 380, borderWidth: 1, borderRadius: 12, padding: 18, elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  readerTitleWrap: { flex: 1, paddingRight: 16 },
+  modalHeading: { fontSize: 18, fontWeight: "700" },
+  closeButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  closeButtonText: { fontSize: 28, lineHeight: 32, textAlign: "center" },
+  readerMeta: { fontSize: 13, marginTop: 4 },
+  progressTrack: { height: 4, borderRadius: 2, marginBottom: 24, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 2 },
+  viewerActions: { flexDirection: "row", flexWrap: "wrap", gap: 9, justifyContent: "space-between" },
+  viewerAction: { width: "31%", height: 88, borderWidth: 1, borderRadius: 8, alignItems: "center", justifyContent: "center", gap: 7 },
+  viewerActionIcon: { fontSize: 23 },
+  popupButton: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderRadius: 8 },
+  viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", paddingHorizontal: 24, paddingVertical: 20 },
+  viewerLoadingArtwork: { flex: 1, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center" },
+  viewerLoadingFooter: { width: "76%", maxWidth: 300, alignItems: "center", paddingBottom: 12 },
+  viewerLoadingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 16 },
+  viewerLoadingTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
+  viewerLoadingFill: { height: "100%", borderRadius: 2 },
+  viewerLoadingText: { minHeight: 18, marginTop: 10, fontSize: 12, fontWeight: "600", textAlign: "center" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  settingsSheet: { borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 14, gap: 14, paddingBottom: 32 },
+  pageDialog: { width: 300, borderWidth: 1, borderRadius: 8, padding: 18 },
+  pageInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 },
+  pageInput: { width: 100, height: 46, borderWidth: 1, borderRadius: 4, fontSize: 20, textAlign: "center", fontWeight: "700" },
+  quickGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  secondaryButton: { flex: 1, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  accentButtonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  pageHint: { textAlign: "center", marginTop: 12, fontSize: 13 },
+});

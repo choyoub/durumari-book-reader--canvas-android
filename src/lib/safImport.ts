@@ -2,9 +2,17 @@ import { AppState, Platform } from "react-native";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
 import type { BookKind, DocumentRecord, FolderRecord } from "../types";
-import { documentFromBytes } from "./documentImport";
 
 const { StorageAccessFramework } = FileSystem;
+
+export interface SafFolderScanProgress {
+  folderIndex: number;
+  totalFolders: number;
+  folderName: string;
+  completedFiles: number;
+  totalFiles: number;
+  progress: number;
+}
 
 function safeDecode(value: string) {
   try {
@@ -51,33 +59,84 @@ function extension(name: string): BookKind | null {
   return null;
 }
 
-async function readSafBytes(uri: string) {
-  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-  const binary = globalThis.atob
-    ? globalThis.atob(base64)
-    : Buffer.from(base64, "base64").toString("binary");
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+function stripExtension(name: string) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
 }
 
-async function scanSafFolder(folder: FolderRecord): Promise<DocumentRecord[]> {
+function hashFromUri(uri: string, name: string): string {
+  // Lightweight hash from URI + name for scan-only mode
+  let hash = 2166136261;
+  const str = uri + name;
+  for (let i = 0; i < str.length; i += 1) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `uri-${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * Lightweight folder scan: only collects file metadata (URI, name, kind)
+ * WITHOUT reading file contents. This prevents OOM for large folders.
+ * Text extraction happens on-demand when a document is opened in the viewer.
+ */
+async function scanSafFolder(
+  folder: FolderRecord,
+  onProgress?: (completedFiles: number, totalFiles: number) => void,
+): Promise<DocumentRecord[]> {
   const uris = await StorageAccessFramework.readDirectoryAsync(folder.treeUri);
   const files = uris
     .map((uri) => ({ uri, name: documentName(uri) }))
     .filter((file) => extension(file.name));
   const documents: DocumentRecord[] = [];
-  for (const file of files) {
-    const bytes = await readSafBytes(file.uri);
-    documents.push(await documentFromBytes({
-      uri: file.uri,
-      name: file.name,
-      folderId: folder.folderId,
-      modifiedAt: Date.now(),
-      bytes,
-    }));
+  onProgress?.(0, files.length);
+
+  const batchSize = 15;
+  for (let i = 0; i < files.length; i += batchSize) {
+    const batch = files.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async (file) => {
+        const kind = extension(file.name)!;
+        const contentHash = hashFromUri(file.uri, file.name);
+        let fileSize = 0;
+        let modifiedAt = folder.lastSyncedAt ?? folder.createdAt;
+        try {
+          const info = await FileSystem.getInfoAsync(file.uri);
+          if (info.exists) {
+            fileSize = info.size ?? 0;
+            if (info.modificationTime) {
+              modifiedAt = info.modificationTime < 10000000000
+                ? Math.round(info.modificationTime * 1000)
+                : Math.round(info.modificationTime);
+            }
+          }
+        } catch {
+          // Some SAF providers omit metadata. Keep the last known folder timestamp.
+        }
+        documents.push({
+          documentId: `${folder.folderId}:${file.name}:${fileSize}:${contentHash}`,
+          folderId: folder.folderId,
+          sourceUri: file.uri,
+          title: stripExtension(file.name),
+          kind,
+          fileSize,
+          modifiedAt,
+          contentHash,
+        });
+      })
+    );
+    onProgress?.(Math.min(files.length, i + batch.length), files.length);
   }
   return documents;
+}
+
+/**
+ * Read file bytes from a SAF URI. Uses Buffer.from directly
+ * to avoid the OOM-prone atob + manual Uint8Array loop.
+ */
+export async function readSafBytes(uri: string): Promise<Uint8Array> {
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+  return new Uint8Array(Buffer.from(base64, "base64"));
 }
 
 export async function chooseSafFolder(): Promise<{ folder: FolderRecord; documents: DocumentRecord[] } | null> {
@@ -99,14 +158,45 @@ export async function chooseSafFolder(): Promise<{ folder: FolderRecord; documen
   return { folder, documents: await scanSafFolder(folder) };
 }
 
-export async function rescanSafFolders(folders: FolderRecord[]) {
+export async function rescanSafFolders(
+  folders: FolderRecord[],
+  onProgress?: (progress: SafFolderScanProgress) => void,
+) {
   if (Platform.OS !== "android") return [];
   const all: { folder: FolderRecord; documents: DocumentRecord[] }[] = [];
-  for (const folder of folders.filter((item) => item.treeUri.startsWith("content://"))) {
-    all.push({
-      folder: { ...folder, lastSyncedAt: Date.now(), permissionStatus: "granted" },
-      documents: await scanSafFolder(folder),
-    });
+  const syncableFolders = folders.filter((item) => item.treeUri.startsWith("content://"));
+  for (let folderIndex = 0; folderIndex < syncableFolders.length; folderIndex += 1) {
+    const folder = syncableFolders[folderIndex];
+    const reportProgress = (completedFiles: number, totalFiles: number) => {
+      const fileProgress = totalFiles > 0 ? completedFiles / totalFiles : (completedFiles > 0 ? 1 : 0);
+      onProgress?.({
+        folderIndex,
+        totalFolders: syncableFolders.length,
+        folderName: folder.displayName,
+        completedFiles,
+        totalFiles,
+        progress: syncableFolders.length
+          ? (folderIndex + fileProgress) / syncableFolders.length
+          : 1,
+      });
+    };
+
+    reportProgress(0, 0);
+    try {
+      const documents = await scanSafFolder(folder, reportProgress);
+      all.push({
+        folder: { ...folder, lastSyncedAt: Date.now(), permissionStatus: "granted" },
+        documents,
+      });
+      reportProgress(Math.max(1, documents.length), documents.length);
+    } catch (error) {
+      // Permission revoked or folder deleted - mark as required
+      all.push({
+        folder: { ...folder, lastSyncedAt: Date.now(), permissionStatus: "required" },
+        documents: [],
+      });
+      reportProgress(1, 1);
+    }
   }
   return all;
 }

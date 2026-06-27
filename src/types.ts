@@ -4,10 +4,11 @@ export type ThemeName = "paper" | "light" | "dark";
 
 export interface SortConfig {
   column: string;
-  direction: "asc" | "desc";
+  direction: "asc" | "desc" | "none";
 }
 
 export interface ReaderSettings {
+  activeFolderId: string | null;
   fontFamily: string;
   fontSize: number;
   isBold: boolean;
@@ -21,6 +22,7 @@ export interface ReaderSettings {
   pageTurnTouch: boolean;
   pageTurnSwipe: boolean;
   pageTurnVolume: boolean;
+  volumeKeyPaging: boolean;
   pageTurnFeedback: "none" | "vibration" | "sound";
   pageTurnStyle: "none" | "curl" | "slide";
   hideCompleted: boolean;
@@ -50,6 +52,7 @@ export interface DocumentRecord {
   modifiedAt: number;
   contentHash: string;
   text?: string;
+  toc?: { label: string; href: string; charOffset: number }[];
 }
 
 export interface ReadingRecord {
@@ -60,6 +63,15 @@ export interface ReadingRecord {
   openedAt: number;
   completed: boolean;
   completedAt?: number;
+}
+
+
+
+export function readingStatus(reading?: ReadingRecord): ReadingStatus {
+  if (!reading || reading.lastPage <= 1) return "unread";
+  if (reading.completed) return "completed";
+  if (reading.lastPage >= reading.totalPages && reading.totalPages > 1) return "completed";
+  return "reading";
 }
 
 export interface BookmarkRecord {
