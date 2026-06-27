@@ -35,6 +35,19 @@ describe("canvasHtml", () => {
     expect(html).toContain("file:///data/user/0/app/cache/MaruBuri.ttf");
   });
 
+  it("includes the chalk reader palette", () => {
+    const html = createCanvasHtml({
+      documentId: "chalk-settings",
+      title: "test",
+      text: "hello",
+      bookmarks: [],
+      settings: { theme: "chalk" } as any,
+    });
+
+    expect(html).toContain('"theme":"chalk"');
+    expect(html).toContain('chalk: { bg:"#1F3F38"');
+  });
+
   it("builds a synchronized paper transition engine with valid JavaScript", () => {
     const html = createCanvasHtml({
       documentId: "motion",

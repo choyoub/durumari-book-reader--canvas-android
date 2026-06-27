@@ -52,6 +52,7 @@ export const themeTokens: Record<ThemeName, {
   border: string;
   accent: string;
   accentText: string;
+  accentForeground: string;
   danger: string;
   unread: string;
   reading: string;
@@ -61,18 +62,19 @@ export const themeTokens: Record<ThemeName, {
     bg: "#F2EAD3",
     outer: "#CFBE90",
     card: "#EAE0C4",
-    statusBar: "#9A5A10",
-    navigationBar: "#9A5A10",
+    statusBar: "#7C6338",
+    navigationBar: "#7C6338",
     statusBarStyle: "light",
     navigationBarStyle: "light",
     text: "#2A2A2A",
     secondary: "#6F6856",
     border: "#D5C5A0",
-    accent: "#9A5A10",
-    accentText: "#9A5A10",
+    accent: "#7C6338",
+    accentText: "#7C6338",
+    accentForeground: "#FFFFFF",
     danger: "#B3342D",
     unread: "#6F6856",
-    reading: "#9A5A10",
+    reading: "#7C6338",
     completed: "#476B3C",
   },
   light: {
@@ -88,6 +90,7 @@ export const themeTokens: Record<ThemeName, {
     border: "#E5E7EB",
     accent: "#4B5563",
     accentText: "#4B5563",
+    accentForeground: "#FFFFFF",
     danger: "#B3261E",
     unread: "#6B7280",
     reading: "#4B5563",
@@ -106,10 +109,30 @@ export const themeTokens: Record<ThemeName, {
     border: "#343842",
     accent: "#0F1115",
     accentText: "#D1D5DB",
+    accentForeground: "#FFFFFF",
     danger: "#FFB4AB",
     unread: "#AEB4BE",
     reading: "#F3F4F6",
     completed: "#72C48A",
+  },
+  chalk: {
+    bg: "#1F3F38",
+    outer: "#17332D",
+    card: "#274C43",
+    statusBar: "#D6C58A",
+    navigationBar: "#D6C58A",
+    statusBarStyle: "dark",
+    navigationBarStyle: "dark",
+    text: "#F4F1E7",
+    secondary: "#B9C7BD",
+    border: "#3D6258",
+    accent: "#D6C58A",
+    accentText: "#F1E8C7",
+    accentForeground: "#1F3F38",
+    danger: "#F1A6A6",
+    unread: "#B9C7BD",
+    reading: "#F1E8C7",
+    completed: "#B7D7A8",
   },
 };
 

@@ -1,6 +1,6 @@
 export type BookKind = "txt" | "epub" | "zip" | "gz";
 export type ReadingStatus = "unread" | "reading" | "completed";
-export type ThemeName = "paper" | "light" | "dark";
+export type ThemeName = "light" | "dark" | "paper" | "chalk";
 
 export interface SortConfig {
   column: string;

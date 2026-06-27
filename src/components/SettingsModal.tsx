@@ -23,7 +23,7 @@ function SettingSection({ children, theme }: { children: React.ReactNode; theme:
 function CheckboxMark({ checked, theme }: { checked: boolean; theme: typeof themeTokens.paper }) {
   return (
     <View style={[styles.checkbox, { borderColor: theme.accent, backgroundColor: checked ? theme.accent : "transparent" }]}>
-      {checked ? <Text style={styles.checkboxText}>✓</Text> : null}
+      {checked ? <Text style={[styles.checkboxText, { color: theme.accentForeground }]}>✓</Text> : null}
     </View>
   );
 }
@@ -259,7 +259,7 @@ export function SettingsModal({
                   <SettingTitle text="🎨 테마 및 데이터" theme={theme} />
                   <SegmentField
                     label="테마"
-                    values={[["paper", "📜 한지"], ["light", "☀️ 화이트"], ["dark", "🌙 다크"]]}
+                    values={[["light", "☀️ 화이트"], ["dark", "🌙 다크"], ["paper", "📜 한지"], ["chalk", "▣ 칠판"]]}
                     current={settings.theme}
                     theme={theme}
                     onChange={(value) => patch({ theme: value as ReaderSettings["theme"] })}
@@ -281,7 +281,7 @@ export function SettingsModal({
             </View>
             <View style={[styles.footerPane, { borderColor: theme.border }]}>
               <Pressable onPress={onConfirm} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
-                <Text style={styles.accentButtonText}>확인</Text>
+                <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>확인</Text>
               </Pressable>
             </View>
           </View>
@@ -378,12 +378,12 @@ const styles = StyleSheet.create({
   stepValue: { width: 60, textAlign: "center", fontVariant: ["tabular-nums"] },
   checkRow: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   checkbox: { width: 26, height: 26, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  checkboxText: { color: "#FFF", fontSize: 19, lineHeight: 22, fontWeight: "800" },
+  checkboxText: { fontSize: 19, lineHeight: 22, fontWeight: "800" },
   segmentField: { minHeight: 56, gap: 8, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   segment: { flexDirection: "row", minHeight: 40, gap: 8 },
   segmentItem: { flex: 1, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   dangerRow: { flexDirection: "row", gap: 10, paddingTop: 12, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
   secondaryButton: { flex: 1, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   primaryButton: { height: 48, alignItems: "center", justifyContent: "center" },
-  accentButtonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  accentButtonText: { fontWeight: "700", fontSize: 16 },
 });

@@ -21,7 +21,7 @@ export function EmptyState({
       <Text style={[styles.emptyBody, { color: theme.secondary }]}>{body}</Text>
       {action && onAction ? (
         <Pressable onPress={onAction} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
-          <Text style={styles.accentButtonText}>{action}</Text>
+          <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>{action}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -33,5 +33,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyBody: { fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 12 },
   primaryButton: { height: 46, paddingHorizontal: 24, alignItems: "center", justifyContent: "center", borderRadius: 4 },
-  accentButtonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  accentButtonText: { fontWeight: "700", fontSize: 16 },
 });

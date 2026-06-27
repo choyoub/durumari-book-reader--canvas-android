@@ -111,7 +111,7 @@ export function LibraryScreen({ search }: { search: string }) {
                     paddingRight: 6,
                   }]}
                 >
-                  <Text numberOfLines={1} style={{ color: isError ? "#E53935" : isActive ? "#fff" : theme.text, fontWeight: isActive ? "800" : "400", maxWidth: 120 }}>
+                  <Text numberOfLines={1} style={{ color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.text, fontWeight: isActive ? "800" : "400", maxWidth: 120 }}>
                     {isError ? "⚠️ " : ""}{folder.displayName}
                   </Text>
                   <Pressable
@@ -119,7 +119,7 @@ export function LibraryScreen({ search }: { search: string }) {
                     hitSlop={6}
                     style={{ marginLeft: 6, width: 20, height: 20, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)" }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: isActive ? "#fff" : theme.secondary }}>✕</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: isActive ? theme.accentForeground : theme.secondary }}>✕</Text>
                   </Pressable>
                 </Pressable>
               </View>
@@ -190,7 +190,7 @@ export function LibraryScreen({ search }: { search: string }) {
               autoFocus
             />
             <Pressable onPress={() => void confirmFolderName()} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
-              <Text style={styles.accentButtonText}>등록하기</Text>
+              <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>등록하기</Text>
             </Pressable>
           </View>
         </View>
@@ -216,5 +216,5 @@ const styles = StyleSheet.create({
   modalHeading: { fontSize: 18, fontWeight: "700" },
   pageInput: { height: 42, borderWidth: 1, paddingHorizontal: 12, borderRadius: 4, fontSize: 16, textAlign: "center" },
   primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },
-  accentButtonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  accentButtonText: { fontWeight: "700", fontSize: 16 },
 });

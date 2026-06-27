@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+assets/v2/
 
 # Native
 .kotlin/
@@ -43,3 +44,8 @@ dist-build-check/
 # generated native folders
 /ios
 /android
+
+# local agent/work notes
+.claude/
+CLAUDE.md
+tasks.md

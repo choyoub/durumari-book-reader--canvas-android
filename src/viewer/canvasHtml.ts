@@ -70,9 +70,10 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     let glyphWidthCache = new Map();
 
     const themes = {
-      paper: { bg:"#F2EAD3", text:"#2A2A2A", accent:"#9A5A10", dog:"#BDA66E", crease:"#8E743E" },
-      light: { bg:"#F8F4ED", text:"#1A1A2E", accent:"#B85C00", dog:"#D8CDBB", crease:"#9C8F7B" },
-      dark: { bg:"#121212", text:"#E0E0E0", accent:"#FF9D00", dog:"#050505", crease:"#4A4A4A" }
+      light: { bg:"#F7F8FA", text:"#111827", accent:"#4B5563", dog:"#D1D5DB", crease:"#9CA3AF" },
+      dark: { bg:"#181A1F", text:"#F3F4F6", accent:"#D1D5DB", dog:"#0F1115", crease:"#343842" },
+      paper: { bg:"#F2EAD3", text:"#2A2A2A", accent:"#7C6338", dog:"#BDA66E", crease:"#8E743E" },
+      chalk: { bg:"#1F3F38", text:"#F4F1E7", accent:"#F1E8C7", dog:"#D6C58A", crease:"#3D6258" }
     };
 
     function post(type, payload, requestId) {

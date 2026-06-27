@@ -105,7 +105,7 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
               <Text style={{ color: theme.text }}>목록으로</Text>
             </Pressable>
             <Pressable style={[styles.popupButton, { borderColor: theme.border, backgroundColor: theme.accent, flex: 1, alignItems: "center" }]} onPress={onRetry}>
-              <Text style={{ color: "#FFF", fontWeight: "700" }}>다시 시도</Text>
+              <Text style={{ color: theme.accentForeground, fontWeight: "700" }}>다시 시도</Text>
             </Pressable>
           </View>
         </View>
@@ -199,7 +199,7 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
             </Pressable>
           </View>
           <Pressable onPress={() => onGo(numeric)} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
-            <Text style={styles.accentButtonText}>이동하기</Text>
+            <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>이동하기</Text>
           </Pressable>
           <Text style={[styles.pageHint, { color: theme.secondary }]}>현재 p.{current}</Text>
         </View>
@@ -586,6 +586,6 @@ const styles = StyleSheet.create({
   quickGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
   secondaryButton: { flex: 1, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },
-  accentButtonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  accentButtonText: { fontWeight: "700", fontSize: 16 },
   pageHint: { textAlign: "center", marginTop: 12, fontSize: 13 },
 });
