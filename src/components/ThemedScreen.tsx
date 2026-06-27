@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { NativeModules, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as NavigationBar from "expo-navigation-bar";
 import * as SystemUI from "expo-system-ui";
@@ -8,11 +8,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { themeTokens } from "../lib/settings";
 
 type Theme = typeof themeTokens.paper;
-const systemBackgroundStack: { id: symbol; color: string }[] = [];
+const systemBackgroundStack: { id: symbol; color: string; useDarkButtons: boolean }[] = [];
+
+function applyNativeNavigationBar(color: string, useDarkButtons: boolean) {
+  NativeModules.SystemBarModule?.setNavigationBarTheme?.(
+    color,
+    useDarkButtons,
+  );
+}
 
 function applyTopSystemBackground() {
-  const next = systemBackgroundStack[systemBackgroundStack.length - 1]?.color;
-  if (next) void SystemUI.setBackgroundColorAsync(next).catch(() => {});
+  const next = systemBackgroundStack[systemBackgroundStack.length - 1];
+  if (next) {
+    void SystemUI.setBackgroundColorAsync(next.color).catch(() => {});
+    applyNativeNavigationBar(next.color, next.useDarkButtons);
+  }
 }
 
 export function ThemedScreen({
@@ -34,8 +44,13 @@ export function ThemedScreen({
     const existing = systemBackgroundStack.find((entry) => entry.id === id);
     if (existing) {
       existing.color = theme.navigationBar;
+      existing.useDarkButtons = theme.navigationBarStyle === "dark";
     } else {
-      systemBackgroundStack.push({ id, color: theme.navigationBar });
+      systemBackgroundStack.push({
+        id,
+        color: theme.navigationBar,
+        useDarkButtons: theme.navigationBarStyle === "dark",
+      });
     }
     applyTopSystemBackground();
 
@@ -44,7 +59,7 @@ export function ThemedScreen({
       if (index >= 0) systemBackgroundStack.splice(index, 1);
       applyTopSystemBackground();
     };
-  }, [theme.navigationBar]);
+  }, [theme.navigationBar, theme.navigationBarStyle]);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.navigationBar }]}>

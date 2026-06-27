@@ -110,11 +110,80 @@ class SafMetadataPackage : ReactPackage {
   return `${nextSource.slice(0, mainActivityIndex)}${safModule}${nextSource.slice(mainActivityIndex)}`;
 }
 
+function addSystemBarModule(source) {
+  if (source.includes("class SystemBarModule")) return source;
+
+  let nextSource = source;
+  [
+    "import android.graphics.Color",
+    "import androidx.core.view.WindowInsetsControllerCompat",
+    "import com.facebook.react.bridge.ReactApplicationContext",
+    "import com.facebook.react.bridge.ReactContextBaseJavaModule",
+    "import com.facebook.react.bridge.ReactMethod",
+    "import com.facebook.react.ReactPackage",
+    "import com.facebook.react.bridge.NativeModule",
+    "import com.facebook.react.uimanager.ViewManager",
+    "import java.util.ArrayList",
+  ].forEach((importLine) => {
+    nextSource = addImport(nextSource, importLine);
+  });
+
+  const systemBarModule = `
+class SystemBarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+  override fun getName(): String {
+      return "SystemBarModule"
+  }
+
+  @ReactMethod
+  fun setNavigationBarTheme(color: String, useDarkButtons: Boolean) {
+      val activity = reactApplicationContext.currentActivity ?: return
+      activity.runOnUiThread {
+          try {
+              val parsedColor = Color.parseColor(color)
+              activity.window.navigationBarColor = parsedColor
+              if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                  WindowInsetsControllerCompat(activity.window, activity.window.decorView).isAppearanceLightNavigationBars = useDarkButtons
+              }
+          } catch (_: Exception) {
+          }
+      }
+  }
+}
+
+class SystemBarPackage : ReactPackage {
+  override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
+      val modules = ArrayList<NativeModule>()
+      modules.add(SystemBarModule(reactContext))
+      return modules
+  }
+
+  override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
+      return emptyList()
+  }
+}
+
+`;
+
+  const mainActivityIndex = nextSource.indexOf("class MainActivity");
+  if (mainActivityIndex < 0) {
+    throw new Error("Could not locate MainActivity declaration.");
+  }
+  return `${nextSource.slice(0, mainActivityIndex)}${systemBarModule}${nextSource.slice(mainActivityIndex)}`;
+}
+
 function addSafMetadataPackage(source) {
   if (source.includes("add(SafMetadataPackage())")) return source;
   return source.replace(
     /PackageList\(this\)\.packages\.apply\s*\{/,
     (match) => `${match}\n          add(SafMetadataPackage())`,
+  );
+}
+
+function addSystemBarPackage(source) {
+  if (source.includes("add(SystemBarPackage())")) return source;
+  return source.replace(
+    /PackageList\(this\)\.packages\.apply\s*\{/,
+    (match) => `${match}\n          add(SystemBarPackage())`,
   );
 }
 
@@ -194,7 +263,7 @@ module.exports = function withKeyboardConfigChanges(config) {
         "MainActivity.kt",
       );
       const source = await fs.promises.readFile(mainActivityPath, "utf8");
-      const nextSource = addSafMetadataModule(addEscapeBackHandling(source));
+      const nextSource = addSystemBarModule(addSafMetadataModule(addEscapeBackHandling(source)));
       if (nextSource !== source) {
         await fs.promises.writeFile(mainActivityPath, nextSource);
       }
@@ -210,7 +279,7 @@ module.exports = function withKeyboardConfigChanges(config) {
         "MainApplication.kt",
       );
       const applicationSource = await fs.promises.readFile(mainApplicationPath, "utf8");
-      const nextApplicationSource = addSafMetadataPackage(applicationSource);
+      const nextApplicationSource = addSystemBarPackage(addSafMetadataPackage(applicationSource));
       if (nextApplicationSource !== applicationSource) {
         await fs.promises.writeFile(mainApplicationPath, nextApplicationSource);
       }

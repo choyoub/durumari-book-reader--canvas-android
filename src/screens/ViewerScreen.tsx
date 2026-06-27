@@ -40,7 +40,7 @@ function ViewerMenuModal({
 }: any) {
   const ratio = total <= 1 ? 0 : (current - 1) / Math.max(1, total - 1);
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.centerBackdrop}>
         <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.modalTitle}>
@@ -137,7 +137,7 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
 
 function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.modalBackdrop}>
         <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: "80%" }]}>
           <View style={styles.modalTitle}>
@@ -169,7 +169,7 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
   const previous = [...sorted].reverse().find((item) => item.page < current);
   const next = sorted.find((item) => item.page > current);
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.centerBackdrop}>
         <View style={[styles.pageDialog, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.modalTitle}>
@@ -490,7 +490,7 @@ export function ViewerScreen() {
         )}
 
         {activeModal === "encoding" && (
-          <Modal visible transparent animationType="fade" onRequestClose={closeTopViewerLayer}>
+          <Modal visible transparent animationType="fade" onRequestClose={closeTopViewerLayer} statusBarTranslucent navigationBarTranslucent>
             <View style={styles.centerBackdrop}>
               <View style={{ padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
                 <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16 }}>인코딩 다시 선택</Text>

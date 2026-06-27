@@ -198,10 +198,11 @@ function AppContent() {
   }, [activeDocument, activeFolderId, booting, requestBackgroundSync]);
 
   const theme = themeTokens[settings.theme];
+  const screenTheme = settingsOpen ? themeTokens[draftSettings.theme] : theme;
 
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(booting ? "#0D1B2A" : theme.navigationBar).catch(() => {});
-  }, [booting, theme.navigationBar]);
+    void SystemUI.setBackgroundColorAsync(booting ? "#0D1B2A" : screenTheme.navigationBar).catch(() => {});
+  }, [booting, screenTheme.navigationBar]);
 
   useEffect(() => {
     const handleBack = () => {
@@ -275,7 +276,21 @@ function AppContent() {
   }
 
   return (
-    <ThemedScreen theme={theme} contentStyle={styles.app}>
+    <ThemedScreen theme={screenTheme} contentStyle={styles.app}>
+      {settingsOpen ? (
+        <SettingsModal
+          visible={settingsOpen}
+          inline
+          settings={draftSettings}
+          theme={screenTheme}
+          onChange={setDraftSettings}
+          onClose={() => setSettingsOpen(false)}
+          onConfirm={confirmSettings}
+          onReset={askResetSettings}
+          onClearFolders={askClearFolders}
+        />
+      ) : (
+        <>
         <View style={[styles.header, { borderColor: theme.border }]}>
           <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TextInput
@@ -311,19 +326,8 @@ function AppContent() {
         </View>
 
         <MainTabPager search={search} tab={tab} onTabChange={setTab} />
-
-        {settingsOpen && (
-          <SettingsModal
-            visible={settingsOpen}
-            settings={draftSettings}
-            theme={theme}
-            onChange={setDraftSettings}
-            onClose={() => setSettingsOpen(false)}
-            onConfirm={confirmSettings}
-            onReset={askResetSettings}
-            onClearFolders={askClearFolders}
-          />
-        )}
+        </>
+      )}
     </ThemedScreen>
   );
 }

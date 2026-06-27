@@ -171,7 +171,14 @@ export function LibraryScreen({ search }: { search: string }) {
       )}
 
       {/* Folder Name Input Modal */}
-      <Modal visible={folderNameModalVisible} transparent animationType="fade" onRequestClose={() => setFolderNameModalVisible(false)}>
+      <Modal
+        visible={folderNameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFolderNameModalVisible(false)}
+        statusBarTranslucent
+        navigationBarTranslucent
+      >
         <View style={styles.centerBackdrop}>
           <View style={[styles.pageDialog, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.modalTitle}>

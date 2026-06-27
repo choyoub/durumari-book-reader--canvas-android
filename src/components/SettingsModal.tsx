@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ReaderSettings } from "../types";
+import { ReaderSettings, ThemeName } from "../types";
 import { nativeFontFamily, READER_FONTS, themeTokens } from "../lib/settings";
 import { ThemedScreen } from "./ThemedScreen";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
+
+const THEME_OPTIONS: { value: ThemeName; label: string; mark: string }[] = [
+  { value: "light", label: "화이트", mark: "☀️" },
+  { value: "dark", label: "다크", mark: "🌙" },
+  { value: "paper", label: "한지", mark: "📜" },
+  { value: "chalk", label: "칠판", mark: "▣" },
+];
 
 function SettingTitle({ text, theme }: { text: string; theme: typeof themeTokens.paper }) {
   return <Text style={[styles.settingTitle, { color: theme.accentText }]}>{text}</Text>;
@@ -106,8 +113,64 @@ function SegmentField({
   );
 }
 
+function ThemeSegmentField({
+  current,
+  theme,
+  onChange,
+}: {
+  current: ThemeName;
+  theme: typeof themeTokens.paper;
+  onChange: (value: ThemeName) => void;
+}) {
+  return (
+    <View style={[styles.segmentField, { borderColor: theme.border }]}>
+      <Text style={[styles.label, { color: theme.secondary }]}>테마</Text>
+      <View style={styles.themeSegment}>
+        {THEME_OPTIONS.map((option) => {
+          const optionTheme = themeTokens[option.value];
+          const selected = current === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={[
+                styles.themeSegmentItem,
+                {
+                  backgroundColor: optionTheme.card,
+                  borderColor: selected ? optionTheme.accent : optionTheme.border,
+                  borderWidth: selected ? 2 : 1,
+                },
+              ]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+            >
+              <View style={[styles.themeAccentStrip, { backgroundColor: optionTheme.accent }]} />
+              <Text style={[styles.themeMark, { color: optionTheme.accentText }]}>{option.mark}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.themeLabel, { color: optionTheme.text }]}>
+                {option.label}
+              </Text>
+              <View
+                style={[
+                  styles.themeSelectedDot,
+                  {
+                    borderColor: optionTheme.accent,
+                    backgroundColor: selected ? optionTheme.accent : "transparent",
+                  },
+                ]}
+              >
+                {selected ? <Text style={[styles.themeSelectedCheck, { color: optionTheme.accentForeground }]}>✓</Text> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function SettingsModal({
   visible,
+  inline = false,
   settings,
   theme,
   onChange,
@@ -117,6 +180,7 @@ export function SettingsModal({
   onClearFolders,
 }: {
   visible: boolean;
+  inline?: boolean;
   settings: ReaderSettings;
   theme: typeof themeTokens.paper;
   onChange: (settings: ReaderSettings) => void;
@@ -141,17 +205,8 @@ export function SettingsModal({
       paddingRight: paddingLinked ? settings.paddingLeft : settings.paddingRight,
     });
   };
-  return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        onRequestClose={onClose}
-        statusBarTranslucent
-        navigationBarTranslucent
-      >
-        <ThemedScreen theme={theme} contentColor={theme.card} contentStyle={styles.settingsScreen}>
-          <View style={[styles.settingsSheet, { backgroundColor: theme.card }]}>
+  const settingsContent = (
+    <View style={[styles.settingsSheet, { backgroundColor: theme.card }]}>
             <View style={[styles.previewPane, { borderColor: theme.border }]}>
               <View style={styles.modalTitle}>
                 <Text style={[styles.modalHeading, { color: theme.text }]}>설정</Text>
@@ -257,13 +312,7 @@ export function SettingsModal({
 
                 <SettingSection theme={theme}>
                   <SettingTitle text="🎨 테마 및 데이터" theme={theme} />
-                  <SegmentField
-                    label="테마"
-                    values={[["light", "☀️ 화이트"], ["dark", "🌙 다크"], ["paper", "📜 한지"], ["chalk", "▣ 칠판"]]}
-                    current={settings.theme}
-                    theme={theme}
-                    onChange={(value) => patch({ theme: value as ReaderSettings["theme"] })}
-                  />
+                  <ThemeSegmentField current={settings.theme} theme={theme} onChange={(value) => patch({ theme: value })} />
                   <Pressable onPress={() => patch({ hideCompleted: !settings.hideCompleted })} style={[styles.checkRow, { borderColor: theme.border }]}>
                     <Text style={[styles.rowText, { color: theme.text }]}>✅ 완독한 책 목록에서 숨김</Text>
                     <CheckboxMark checked={settings.hideCompleted} theme={theme} />
@@ -284,9 +333,26 @@ export function SettingsModal({
                 <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>확인</Text>
               </Pressable>
             </View>
-          </View>
-        </ThemedScreen>
-      </Modal>
+    </View>
+  );
+
+  return (
+    <>
+      {inline ? (
+        settingsContent
+      ) : (
+        <Modal
+          visible={visible}
+          animationType="slide"
+          onRequestClose={onClose}
+          statusBarTranslucent
+          navigationBarTranslucent
+        >
+          <ThemedScreen theme={theme} contentColor={theme.card} contentStyle={styles.settingsScreen}>
+            {settingsContent}
+          </ThemedScreen>
+        </Modal>
+      )}
 
       <Modal
         visible={visible && fontPickerOpen}
@@ -382,6 +448,13 @@ const styles = StyleSheet.create({
   segmentField: { minHeight: 56, gap: 8, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   segment: { flexDirection: "row", minHeight: 40, gap: 8 },
   segmentItem: { flex: 1, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  themeSegment: { flexDirection: "row", gap: 8 },
+  themeSegmentItem: { flex: 1, minHeight: 78, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, paddingTop: 12, paddingBottom: 8, overflow: "hidden" },
+  themeAccentStrip: { position: "absolute", top: 0, left: 0, right: 0, height: 7 },
+  themeMark: { fontSize: 18, lineHeight: 22, marginBottom: 4 },
+  themeLabel: { maxWidth: "100%", fontSize: 12, fontWeight: "700", textAlign: "center" },
+  themeSelectedDot: { position: "absolute", right: 5, bottom: 5, width: 18, height: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  themeSelectedCheck: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
   dangerRow: { flexDirection: "row", gap: 10, paddingTop: 12, paddingBottom: 8, borderTopWidth: StyleSheet.hairlineWidth },
   secondaryButton: { flex: 1, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   primaryButton: { height: 48, alignItems: "center", justifyContent: "center" },
