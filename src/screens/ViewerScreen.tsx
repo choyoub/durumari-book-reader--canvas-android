@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, DeviceEventEmitter, Modal, NativeModules, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, BackHandler, DeviceEventEmitter, Modal, NativeModules, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 
 import { CanvasReader } from "../components/CanvasReader";
@@ -163,6 +163,57 @@ function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
   );
 }
 
+function PageMoveSlider({ page, total, theme, onChange }: any) {
+  const sliderRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const trackLeftRef = useRef(0);
+  const maxPage = Math.max(1, total);
+  const safePage = clamp(Math.round(Number(page) || 1), 1, maxPage);
+  const ratio = maxPage <= 1 ? 0 : (safePage - 1) / (maxPage - 1);
+
+  const updateFromPageX = useCallback((pageX: number) => {
+    if (trackWidth <= 0) return;
+    const x = pageX - trackLeftRef.current;
+    const nextRatio = clamp(x / trackWidth, 0, 1);
+    const nextPage = clamp(Math.round(nextRatio * (maxPage - 1)) + 1, 1, maxPage);
+    onChange(String(nextPage));
+  }, [maxPage, onChange, trackWidth]);
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (event) => {
+      const pageX = event.nativeEvent.pageX;
+      sliderRef.current?.measureInWindow((x) => {
+        trackLeftRef.current = x;
+        updateFromPageX(pageX);
+      });
+    },
+    onPanResponderMove: (event) => updateFromPageX(event.nativeEvent.pageX),
+  });
+
+  return (
+    <View
+      ref={sliderRef}
+      style={styles.pageSliderRow}
+      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+      {...panResponder.panHandlers}
+      accessibilityRole="adjustable"
+      accessibilityValue={{ min: 1, max: maxPage, now: safePage }}
+      accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+      onAccessibilityAction={(event) => {
+        const delta = event.nativeEvent.actionName === "increment" ? 1 : -1;
+        onChange(String(clamp(safePage + delta, 1, maxPage)));
+      }}
+    >
+      <View style={[styles.pageSliderTrack, { backgroundColor: theme.border }]}>
+        <View style={[styles.pageSliderFill, { backgroundColor: theme.accent, width: `${ratio * 100}%` }]} />
+      </View>
+      <View style={[styles.pageSliderThumb, { borderColor: theme.accent, backgroundColor: theme.card, left: `${ratio * 100}%` }]} />
+    </View>
+  );
+}
+
 function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, onChange, onClose, onGo }: any) {
   const numeric = clamp(Number(value) || current, 1, Math.max(1, total));
   const sorted = [...bookmarks].sort((a: any, b: any) => a.page - b.page);
@@ -187,6 +238,7 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
             />
             <Text style={{ color: theme.secondary }}>/ {total}</Text>
           </View>
+          <PageMoveSlider page={numeric} total={total} theme={theme} onChange={onChange} />
           <View style={styles.quickGrid}>
             <Pressable style={[styles.secondaryButton, { borderColor: theme.border }]} onPress={() => onGo(1)}>
               <Text style={{ color: theme.text }}>처음</Text>
@@ -581,8 +633,12 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   settingsSheet: { borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 14, gap: 14, paddingBottom: 32 },
   pageDialog: { width: 300, borderWidth: 1, borderRadius: 8, padding: 18 },
-  pageInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 },
+  pageInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 12 },
   pageInput: { width: 100, height: 46, borderWidth: 1, borderRadius: 4, fontSize: 20, textAlign: "center", fontWeight: "700" },
+  pageSliderRow: { height: 32, justifyContent: "center", marginBottom: 18 },
+  pageSliderTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  pageSliderFill: { height: "100%", borderRadius: 3 },
+  pageSliderThumb: { position: "absolute", width: 22, height: 22, marginLeft: -11, borderRadius: 11, borderWidth: 2 },
   quickGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
   secondaryButton: { flex: 1, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },

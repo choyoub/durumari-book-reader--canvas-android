@@ -124,7 +124,6 @@ function ThemeSegmentField({
 }) {
   return (
     <View style={[styles.segmentField, { borderColor: theme.border }]}>
-      <Text style={[styles.label, { color: theme.secondary }]}>테마</Text>
       <View style={styles.themeSegment}>
         {THEME_OPTIONS.map((option) => {
           const optionTheme = themeTokens[option.value];
@@ -239,14 +238,18 @@ export function SettingsModal({
                   paddingRight: settings.paddingRight,
                 },
               ]}>
-                <Text style={{
-                  color: previewTheme.text,
-                  fontFamily: previewFont,
-                  fontSize: settings.fontSize,
-                  fontWeight: settings.isBold ? "700" : "400",
-                  lineHeight: settings.fontSize * settings.lineHeight,
-                  letterSpacing: settings.letterSpacing,
-                }}>
+                <Text
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  style={{
+                    color: previewTheme.text,
+                    fontFamily: previewFont,
+                    fontSize: settings.fontSize,
+                    fontWeight: settings.isBold ? "700" : "400",
+                    lineHeight: settings.fontSize * settings.lineHeight,
+                    letterSpacing: settings.letterSpacing,
+                  }}
+                >
                   소년은 개울가에서 소녀를 보자 곧 윤 초시네 증손녀딸이라는 걸 알 수 있었다.
                 </Text>
               </View>
@@ -319,7 +322,7 @@ export function SettingsModal({
                 </SettingSection>
 
                 <SettingSection theme={theme}>
-                  <SettingTitle text="🎨 테마 및 데이터" theme={theme} />
+                  <SettingTitle text="🎨 테마 및 필터" theme={theme} />
                   <ThemeSegmentField current={settings.theme} theme={theme} onChange={(value) => patch({ theme: value })} />
                   <Pressable onPress={() => patch({ hideCompleted: !settings.hideCompleted })} style={[styles.checkRow, { borderColor: theme.border }]}>
                     <Text style={[styles.rowText, { color: theme.text }]}>✅ 완독한 책 목록에서 숨김</Text>
