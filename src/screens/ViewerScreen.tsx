@@ -7,9 +7,9 @@ import { ScrollArtwork } from "../components/IntroScroll";
 import { SettingsModal } from "../components/SettingsModal";
 import { ThemedScreen } from "../components/ThemedScreen";
 import { useAppContext } from "../contexts/AppContext";
-import { DocumentRecord } from "../types";
+import { BookmarkRecord, DocumentRecord, ReadingRecord } from "../types";
 import { defaultSettings, themeTokens } from "../lib/settings";
-import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, saveSettings } from "../lib/store";
+import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, saveSettings, syncBookmarks } from "../lib/store";
 import { hydrateDocumentFromBytes } from "../lib/documentImport";
 import { readSafBytes } from "../lib/safImport";
 
@@ -243,10 +243,10 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
             <Pressable style={[styles.secondaryButton, { borderColor: theme.border }]} onPress={() => onGo(1)}>
               <Text style={{ color: theme.text }}>처음</Text>
             </Pressable>
-            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: previous ? 1 : .45 }]} disabled={!previous} onPress={() => previous && onGo(previous.page)}>
+            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: previous ? 1 : .45 }]} disabled={!previous} onPress={() => previous && onGo(previous.page, { keepOpen: true })}>
               <Text style={{ color: theme.text }}>이전 책갈피</Text>
             </Pressable>
-            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: next ? 1 : .45 }]} disabled={!next} onPress={() => next && onGo(next.page)}>
+            <Pressable style={[styles.secondaryButton, { borderColor: theme.border, opacity: next ? 1 : .45 }]} disabled={!next} onPress={() => next && onGo(next.page, { keepOpen: true })}>
               <Text style={{ color: theme.text }}>다음 책갈피</Text>
             </Pressable>
           </View>
@@ -270,6 +270,8 @@ export function ViewerScreen() {
     setSettings,
     activeDocument,
     setActiveDocument,
+    activeViewerTarget,
+    openDocument,
     readingsById,
     bookmarks,
     refresh,
@@ -286,7 +288,10 @@ export function ViewerScreen() {
   const viewerHasLoadedRef = useRef(false);
   
   const activeReading = activeDocument ? readingsById.get(activeDocument.documentId) : null;
-  const initialPage = activeReading?.lastPage || 1;
+  const targetBookmark = activeViewerTarget?.type === "bookmark"
+    ? bookmarks.find((item) => item.bookmarkId === activeViewerTarget.bookmarkId)
+    : null;
+  const initialPage = targetBookmark?.page || activeReading?.lastPage || 1;
   const [viewerPage, setViewerPage] = useState({ current: initialPage, total: 1, offset: 0 });
   const [bookmarkSignal, setBookmarkSignal] = useState(0);
   const [activeModal, setActiveModal] = useState<ViewerModal | null>(null);
@@ -334,7 +339,7 @@ export function ViewerScreen() {
     void loadViewerDocument(document)
       .then((hydrated) => {
         if (cancelled) return;
-        setActiveDocument(hydrated);
+        openDocument(hydrated, activeViewerTarget);
         void refresh();
       })
       .catch((error) => {
@@ -353,7 +358,7 @@ export function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activeDocument?.documentId, loadAttempt, refresh, setActiveDocument]);
+  }, [activeDocument?.documentId, activeViewerTarget, loadAttempt, openDocument, refresh]);
 
   useEffect(() => {
     if (NativeModules.VolumeKeyModule) {
@@ -380,12 +385,12 @@ export function ViewerScreen() {
 
 
 
-  async function onPageChanged(payload: { currentPage: number; totalPages: number; progress: number; completed?: boolean; preview?: string; boundary?: boolean; }) {
+  async function onPageChanged(payload: { currentPage: number; totalPages: number; progress: number; completed?: boolean; preview?: string; boundary?: boolean; offset?: number; }) {
     if (!activeDocument || payload.boundary) {
       if (settings.pageTurnFeedback === "vibration") void Haptics.selectionAsync();
       return;
     }
-    setViewerPage(prev => ({ current: payload.currentPage, total: payload.totalPages, offset: prev.offset }));
+    setViewerPage(prev => ({ current: payload.currentPage, total: payload.totalPages, offset: payload.offset ?? prev.offset }));
     const prior = readingsById.get(activeDocument.documentId);
     const completed = Boolean(prior?.completed || payload.completed);
     await saveReading({
@@ -396,22 +401,39 @@ export function ViewerScreen() {
       openedAt: Date.now(),
       completed,
       completedAt: completed ? (prior?.completedAt ?? Date.now()) : undefined,
+      anchorOffset: payload.offset ?? null,
     });
     if (settings.pageTurnFeedback === "vibration") void Haptics.selectionAsync();
     await refresh();
   }
 
-  async function onBookmarkChanged(payload: { active: boolean; page: number; totalPages: number; progress: number; preview?: string; }) {
+  async function onBookmarkChanged(payload: { active: boolean; page: number; totalPages: number; progress: number; preview?: string; bookmarkId?: string; anchorOffset?: number | null; }) {
     if (!activeDocument) return;
     await toggleBookmark({
-      bookmarkId: makeBookmarkId(activeDocument.documentId, payload.page),
+      bookmarkId: payload.bookmarkId && !payload.bookmarkId.startsWith("local-")
+        ? payload.bookmarkId
+        : makeBookmarkId(activeDocument.documentId, payload.page),
       documentId: activeDocument.documentId,
       page: payload.page,
       totalPages: payload.totalPages,
       progress: payload.progress,
       preview: payload.preview || activeDocument.title,
       createdAt: Date.now(),
+      anchorOffset: payload.anchorOffset ?? null,
     });
+    await refresh();
+  }
+
+  async function onBookmarksSynced(payload: { bookmarks: BookmarkRecord[] }) {
+    const synced = payload.bookmarks.filter((item) => item.documentId === activeDocument?.documentId);
+    if (!synced.length) return;
+    await syncBookmarks(synced);
+    await refresh();
+  }
+
+  async function onReadingSynced(payload: { reading: ReadingRecord }) {
+    if (!activeDocument || payload.reading.documentId !== activeDocument.documentId) return;
+    await saveReading(payload.reading);
     await refresh();
   }
 
@@ -456,7 +478,9 @@ export function ViewerScreen() {
             document={activeDocument}
             settings={settings}
             initialPage={initialPage}
+            reading={activeReading}
             bookmarks={bookmarks}
+            targetBookmarkId={activeViewerTarget?.type === "bookmark" ? activeViewerTarget.bookmarkId : null}
             onReady={(currentPage, totalPages, offset) => {
               viewerHasLoadedRef.current = true;
               setViewerPage({ current: currentPage, total: totalPages, offset: offset || 0 });
@@ -471,6 +495,8 @@ export function ViewerScreen() {
             }}
             onPageChanged={onPageChanged}
             onBookmarkChanged={onBookmarkChanged}
+            onReadingSynced={onReadingSynced}
+            onBookmarksSynced={onBookmarksSynced}
             onMenuRequested={() => setActiveModal("menu")}
             onBackRequested={closeTopViewerLayer}
             onLoadingProgress={(payload) => setViewerLoading((previous) => ({
@@ -584,8 +610,9 @@ export function ViewerScreen() {
             bookmarks={bookmarks.filter((item) => item.documentId === activeDocument.documentId)}
             onChange={setPageDraft}
             onClose={closeTopViewerLayer}
-            onGo={(page: number) => {
-              setActiveModal(null);
+            onGo={(page: number, options?: { keepOpen?: boolean }) => {
+              setPageDraft(String(page));
+              if (!options?.keepOpen) setActiveModal(null);
               setPageRequest({ signal: Date.now(), page });
             }}
           />

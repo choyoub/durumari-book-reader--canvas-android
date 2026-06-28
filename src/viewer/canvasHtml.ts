@@ -1,11 +1,13 @@
-import type { ReaderSettings } from "../types";
+import type { BookmarkRecord, ReaderSettings, ReadingRecord } from "../types";
 
 export interface CanvasDocumentPayload {
   documentId: string;
   title: string;
   text: string;
   initialPage?: number;
-  bookmarks: number[];
+  reading?: ReadingRecord | null;
+  bookmarks: BookmarkRecord[];
+  targetBookmarkId?: string | null;
   settings: ReaderSettings;
   fontUris?: Record<string, string>;
   settingsKey?: string;
@@ -162,16 +164,18 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         if (runId !== paginationRunId) return;
         if (nextStarts[nextStarts.length - 1] !== text.length) nextStarts.push(text.length);
         starts = nextStarts;
-        if (targetOffset !== null) {
-          let foundPage = starts.length;
-          for (let i = 0; i < starts.length; i++) {
-            if (targetOffset < starts[i]) {
-              foundPage = i;
-              break;
-            }
-          }
-          page = Math.min(totalPages(), Math.max(1, foundPage));
+        const syncedReading = syncReading();
+        const syncedBookmarks = syncBookmarks();
+        if (documentData.targetBookmarkId) {
+          const targetBookmark = syncedBookmarks.find(bookmark => bookmark.bookmarkId === documentData.targetBookmarkId);
+          if (targetBookmark) page = targetBookmark.page;
+          documentData.targetBookmarkId = null;
           targetOffset = null;
+        } else if (targetOffset !== null) {
+          page = pageForOffset(targetOffset);
+          targetOffset = null;
+        } else if (syncedReading) {
+          page = syncedReading.lastPage;
         } else {
           page = Math.min(Math.max(1, page), totalPages());
         }
@@ -215,6 +219,139 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
 
     function previewText() {
       return (documentData.text || "").slice(starts[page - 1], starts[page]).replace(/\\s+/g, " ").trim().slice(0, 80);
+    }
+
+    function pagePreview(pageNum) {
+      return (documentData.text || "").slice(starts[pageNum - 1], starts[pageNum]).replace(/\\s+/g, " ").trim().slice(0, 80);
+    }
+
+    function pageProgress(pageNum) {
+      return totalPages() <= 1 ? 0 : (pageNum - 1) / (totalPages() - 1);
+    }
+
+    function pageForOffset(offset) {
+      const textLength = (documentData.text || "").length;
+      const safeOffset = Math.max(0, Math.min(textLength, Math.round(Number(offset) || 0)));
+      let foundPage = starts.length;
+      for (let i = 0; i < starts.length; i++) {
+        if (safeOffset < starts[i]) {
+          foundPage = i;
+          break;
+        }
+      }
+      return Math.min(totalPages(), Math.max(1, foundPage));
+    }
+
+    function findPreviewOffset(preview) {
+      const needle = String(preview || "").replace(/\\s+/g, " ").trim();
+      const text = documentData.text || "";
+      if (!needle) return null;
+      const direct = text.indexOf(needle);
+      if (direct >= 0) return direct;
+      const chars = [];
+      const offsets = [];
+      let previousWasSpace = false;
+      for (let index = 0; index < text.length; index++) {
+        const ch = text[index];
+        if (/\\s/.test(ch)) {
+          if (!previousWasSpace) {
+            chars.push(" ");
+            offsets.push(index);
+            previousWasSpace = true;
+          }
+        } else {
+          chars.push(ch);
+          offsets.push(index);
+          previousWasSpace = false;
+        }
+      }
+      const normalizedIndex = chars.join("").indexOf(needle);
+      return normalizedIndex >= 0 ? offsets[normalizedIndex] ?? null : null;
+    }
+
+    function resolveAnchorOffset(bookmark) {
+      const textLength = (documentData.text || "").length;
+      if (Number.isFinite(bookmark.anchorOffset)) {
+        return Math.max(0, Math.min(textLength, Math.round(bookmark.anchorOffset)));
+      }
+      const previewOffset = findPreviewOffset(bookmark.preview);
+      if (previewOffset !== null) return previewOffset;
+      if (Number.isFinite(bookmark.progress)) {
+        return Math.max(0, Math.min(textLength, Math.round(bookmark.progress * textLength)));
+      }
+      const fallbackPage = Math.min(totalPages(), Math.max(1, Math.round(bookmark.page || 1)));
+      return starts[fallbackPage - 1] || 0;
+    }
+
+    function resolveReadingAnchorOffset(reading) {
+      const textLength = (documentData.text || "").length;
+      if (Number.isFinite(reading.anchorOffset)) {
+        return Math.max(0, Math.min(textLength, Math.round(reading.anchorOffset)));
+      }
+      if (Number.isFinite(reading.progress)) {
+        return Math.max(0, Math.min(textLength, Math.round(reading.progress * textLength)));
+      }
+      const fallbackPage = Math.min(totalPages(), Math.max(1, Math.round(reading.lastPage || 1)));
+      return starts[fallbackPage - 1] || 0;
+    }
+
+    function recordChanged(previous, next, pageField) {
+      return previous[pageField] !== next[pageField]
+        || previous.totalPages !== next.totalPages
+        || Math.abs((previous.progress || 0) - (next.progress || 0)) > 0.000001
+        || previous.anchorOffset !== next.anchorOffset
+        || (previous.preview !== undefined && next.preview !== undefined && previous.preview !== next.preview);
+    }
+
+    function syncReading() {
+      const reading = documentData.reading;
+      if (!reading) return null;
+      const needsSync = reading.totalPages !== totalPages() || !Number.isFinite(reading.anchorOffset);
+      if (!needsSync) return null;
+      const anchorOffset = resolveReadingAnchorOffset(reading);
+      const readingPage = pageForOffset(anchorOffset);
+      const synced = {
+        ...reading,
+        lastPage: readingPage,
+        totalPages: totalPages(),
+        progress: pageProgress(readingPage),
+        anchorOffset,
+      };
+      documentData.reading = synced;
+      if (recordChanged(reading, synced, "lastPage")) {
+        post("readingSynced", { reading: synced });
+      }
+      return synced;
+    }
+
+    function syncBookmarks() {
+      const bookmarks = Array.isArray(documentData.bookmarks) ? documentData.bookmarks : [];
+      const changed = [];
+      const synced = bookmarks.map((bookmark) => {
+        const isTarget = bookmark.bookmarkId === documentData.targetBookmarkId;
+        const needsSync = isTarget || bookmark.totalPages !== totalPages() || !Number.isFinite(bookmark.anchorOffset);
+        if (!needsSync) return bookmark;
+        const anchorOffset = resolveAnchorOffset(bookmark);
+        const bookmarkPage = pageForOffset(anchorOffset);
+        const nextBookmark = {
+          ...bookmark,
+          page: bookmarkPage,
+          totalPages: totalPages(),
+          progress: pageProgress(bookmarkPage),
+          preview: pagePreview(bookmarkPage),
+          anchorOffset,
+        };
+        if (recordChanged(bookmark, nextBookmark, "page")) changed.push(nextBookmark);
+        return nextBookmark;
+      });
+      documentData.bookmarks = synced;
+      if (changed.length) post("bookmarksSynced", { bookmarks: changed });
+      return synced;
+    }
+
+    function bookmarkForPage(pageNum) {
+      const bookmarks = Array.isArray(documentData.bookmarks) ? documentData.bookmarks : [];
+      return bookmarks.find(bookmark => bookmark.page === pageNum) || null;
     }
 
     function resize() {
@@ -288,7 +425,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     }
 
     function drawBookmarkFold(pageNum, target, width, theme) {
-      if (!documentData.bookmarks.includes(pageNum)) return;
+      if (!bookmarkForPage(pageNum)) return;
       const size = 48;
       const fold = target.createLinearGradient(width - size, 0, width, size);
       fold.addColorStop(0, theme.dog);
@@ -657,25 +794,38 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     }
 
     function goToOffset(offset, requestId) {
-      let foundPage = starts.length;
-      for (let i = 0; i < starts.length; i++) {
-        if (offset < starts[i]) {
-          foundPage = i;
-          break;
-        }
-      }
-      goToPage(foundPage, requestId);
+      goToPage(pageForOffset(offset), requestId);
     }
 
     function toggleBookmark(requestId) {
       if (isAnimating) return;
-      const index = documentData.bookmarks.indexOf(page);
-      const active = index >= 0;
-      if (active) documentData.bookmarks.splice(index, 1);
-      else documentData.bookmarks.push(page);
+      const bookmarks = Array.isArray(documentData.bookmarks) ? documentData.bookmarks : [];
+      const current = bookmarkForPage(page);
+      const active = Boolean(current);
+      const anchorOffset = starts[page - 1] || 0;
+      const bookmark = current || {
+        bookmarkId: "local-" + Date.now(),
+        documentId: documentData.documentId,
+        page,
+        totalPages: totalPages(),
+        progress: progress(),
+        preview: previewText(),
+        createdAt: Date.now(),
+        anchorOffset,
+      };
+      if (active) documentData.bookmarks = bookmarks.filter(item => item.bookmarkId !== current.bookmarkId);
+      else documentData.bookmarks = [...bookmarks, bookmark];
       pageSurfaces.delete(page);
       render();
-      post("bookmarkChanged", { active: !active, page, totalPages: totalPages(), progress: progress(), preview: previewText() }, requestId);
+      post("bookmarkChanged", {
+        active: !active,
+        bookmarkId: bookmark.bookmarkId,
+        page,
+        totalPages: totalPages(),
+        progress: progress(),
+        preview: previewText(),
+        anchorOffset,
+      }, requestId);
     }
 
     function requestMenu(source) {

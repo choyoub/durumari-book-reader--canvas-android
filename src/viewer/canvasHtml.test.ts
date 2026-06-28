@@ -82,4 +82,52 @@ describe("canvasHtml", () => {
     expect(html).toContain('go(nx >= 0 ? 1 : -1, "horizontal")');
     expect(html).toContain('go(ny >= 0 ? 1 : -1, "vertical")');
   });
+
+  it("embeds bookmark anchor sync and target bookmark navigation", () => {
+    const html = createCanvasHtml({
+      documentId: "bookmarks",
+      title: "bookmark test",
+      text: "first page\nsecond page\nthird page\n".repeat(80),
+      initialPage: 1,
+      targetBookmarkId: "bookmark-1",
+      bookmarks: [{
+        bookmarkId: "bookmark-1",
+        documentId: "bookmarks",
+        page: 1,
+        totalPages: 1,
+        progress: 0,
+        preview: "second page",
+        createdAt: 1,
+        anchorOffset: null,
+      }],
+      settings: {
+        fontFamily: "NanumGothic",
+        fontSize: 18,
+        isBold: false,
+        lineHeight: 1.6,
+        letterSpacing: 0,
+        paddingTop: 24,
+        paddingBottom: 24,
+        paddingLeft: 24,
+        paddingRight: 24,
+        theme: "paper",
+        pageTurnStyle: "none",
+      } as any,
+      settingsKey: "bookmark-settings",
+    });
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+
+    expect(script).toBeDefined();
+    expect(() => new Function(script!)).not.toThrow();
+    expect(html).toContain('"targetBookmarkId":"bookmark-1"');
+    expect(html).toContain("function resolveAnchorOffset");
+    expect(html).toContain("function syncReading");
+    expect(html).toContain("function syncBookmarks");
+    expect(html).toContain('post("readingSynced"');
+    expect(html).toContain('post("bookmarksSynced"');
+    expect(html).toContain("documentData.targetBookmarkId");
+    expect(html).toContain("bookmark.totalPages !== totalPages()");
+    expect(html).toContain("reading.totalPages !== totalPages()");
+    expect(html).toContain("anchorOffset");
+  });
 });

@@ -12,7 +12,7 @@ export function BookmarksScreen({ search }: { search: string }) {
     documentsById,
     bookmarks,
     foldersById,
-    setActiveDocument,
+    openDocument,
     updateSort,
   } = useAppContext();
 
@@ -57,7 +57,11 @@ export function BookmarksScreen({ search }: { search: string }) {
       </View>
       <ScrollView>
         {bookmarkRows.length === 0 ? <EmptyState title="책갈피가 없습니다." body="뷰어에서 책갈피를 추가하면 이곳에서 바로 이동할 수 있습니다." theme={theme} /> : bookmarkRows.map(({ bookmark, document }) => (
-          <Pressable key={bookmark.bookmarkId} onPress={() => setActiveDocument(document)} style={[styles.tableRow, { borderColor: theme.border }]}>
+          <Pressable
+            key={bookmark.bookmarkId}
+            onPress={() => openDocument(document, { type: "bookmark", bookmarkId: bookmark.bookmarkId })}
+            style={[styles.tableRow, { borderColor: theme.border }]}
+          >
             <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
             <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
             <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(bookmark.createdAt)}</Text>

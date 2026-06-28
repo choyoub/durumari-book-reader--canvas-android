@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAssets } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
-import type { BookmarkRecord, DocumentRecord, ReaderSettings } from "../types";
+import type { BookmarkRecord, DocumentRecord, ReaderSettings, ReadingRecord } from "../types";
 import { createCanvasHtml } from "../viewer/canvasHtml";
 
 const VIEWER_FONT_ASSETS = [
@@ -44,7 +44,9 @@ interface Props {
   document: DocumentRecord;
   settings: ReaderSettings;
   initialPage: number;
+  reading?: ReadingRecord | null;
   bookmarks: BookmarkRecord[];
+  targetBookmarkId?: string | null;
   onReady: (currentPage: number, totalPages: number, offset: number) => void;
   onPageChanged: (payload: {
     currentPage: number;
@@ -53,6 +55,7 @@ interface Props {
     completed?: boolean;
     preview?: string;
     boundary?: boolean;
+    offset?: number;
   }) => void;
   onBookmarkChanged: (payload: {
     active: boolean;
@@ -60,7 +63,11 @@ interface Props {
     totalPages: number;
     progress: number;
     preview: string;
+    bookmarkId?: string;
+    anchorOffset?: number | null;
   }) => void;
+  onReadingSynced?: (payload: { reading: ReadingRecord }) => Promise<void> | void;
+  onBookmarksSynced?: (payload: { bookmarks: BookmarkRecord[] }) => Promise<void> | void;
   onMenuRequested?: () => void;
   onBackRequested?: () => void;
   onLoadingProgress?: (payload: { progress: number; message?: string }) => void;
@@ -75,10 +82,14 @@ export function CanvasReader({
   document,
   settings,
   initialPage,
+  reading,
   bookmarks,
+  targetBookmarkId,
   onReady,
   onPageChanged,
   onBookmarkChanged,
+  onReadingSynced,
+  onBookmarksSynced,
   onMenuRequested,
   onBackRequested,
   onLoadingProgress,
@@ -99,22 +110,29 @@ export function CanvasReader({
     }, {});
   }, [fontAssets]);
   const settingsKey = useMemo(() => createSettingsKey(settings), [settings]);
-  const initialBookmarkPagesRef = useRef<number[] | null>(null);
-  if (initialBookmarkPagesRef.current === null) {
-    initialBookmarkPagesRef.current = bookmarks.filter((item) => item.documentId === document.documentId).map((item) => item.page);
+  const initialReadingRef = useRef<ReadingRecord | null | undefined>(undefined);
+  if (initialReadingRef.current === undefined) {
+    initialReadingRef.current = reading ?? null;
   }
+  const initialBookmarksRef = useRef<BookmarkRecord[] | null>(null);
+  if (initialBookmarksRef.current === null) {
+    initialBookmarksRef.current = bookmarks.filter((item) => item.documentId === document.documentId);
+  }
+  const pendingSyncRef = useRef<Promise<void> | null>(null);
   const html = useMemo(
     () => createCanvasHtml({
       documentId: document.documentId,
       title: document.title,
       text: document.text ?? "",
       initialPage,
-      bookmarks: initialBookmarkPagesRef.current ?? [],
+      reading: initialReadingRef.current,
+      bookmarks: initialBookmarksRef.current ?? [],
+      targetBookmarkId,
       settings,
       fontUris,
       settingsKey,
     }),
-    [document.documentId, document.text, document.title, fontUris],
+    [document.documentId, document.text, document.title, fontUris, targetBookmarkId],
   );
 
   const prevSettings = useRef(settings);
@@ -169,12 +187,25 @@ export function CanvasReader({
     }));
   }, [offsetRequest]);
 
-  function onMessage(event: WebViewMessageEvent) {
+  async function onMessage(event: WebViewMessageEvent) {
     try {
       const message = JSON.parse(event.nativeEvent.data) as { version: number; type: string; payload: any };
       if (message.version !== 1) return;
+      if (message.type === "readingSynced") {
+        pendingSyncRef.current = Promise.resolve(onReadingSynced?.(message.payload))
+          .then(() => undefined)
+          .catch(() => undefined);
+        await pendingSyncRef.current;
+      }
+      if (message.type === "bookmarksSynced") {
+        pendingSyncRef.current = Promise.resolve(onBookmarksSynced?.(message.payload))
+          .then(() => undefined)
+          .catch(() => undefined);
+        await pendingSyncRef.current;
+      }
       if (message.type === "ready") {
         if (message.payload?.settingsKey !== settingsKey) return;
+        if (pendingSyncRef.current) await pendingSyncRef.current;
         onReady(message.payload.currentPage, message.payload.totalPages, message.payload.offset);
       }
       if (message.type === "pageChanged") onPageChanged(message.payload);

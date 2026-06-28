@@ -6,7 +6,8 @@ import {
   ReadingRecord, 
   BookmarkRecord, 
   ReaderSettings, 
-  SortConfig 
+  SortConfig,
+  ViewerOpenTarget
 } from '../types';
 import { defaultSettings, resolveActiveFolderId } from '../lib/settings';
 import { 
@@ -54,6 +55,8 @@ interface AppContextValue {
   
   activeDocument: DocumentRecord | null;
   setActiveDocument: React.Dispatch<React.SetStateAction<DocumentRecord | null>>;
+  activeViewerTarget: ViewerOpenTarget | null;
+  openDocument: (document: DocumentRecord, target?: ViewerOpenTarget | null) => void;
 
   refresh: () => Promise<void>;
   rescanFolders: (options?: FolderSyncProgressListener | FolderSyncOptions) => Promise<void>;
@@ -69,10 +72,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [readings, setReadings] = useState<ReadingRecord[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkRecord[]>([]);
-  const [activeDocument, setActiveDocument] = useState<DocumentRecord | null>(null);
+  const [activeDocument, setActiveDocumentState] = useState<DocumentRecord | null>(null);
+  const [activeViewerTarget, setActiveViewerTarget] = useState<ViewerOpenTarget | null>(null);
   const rescanPromiseRef = useRef<Promise<void> | null>(null);
   const rescanProgressListenersRef = useRef(new Set<FolderSyncProgressListener>());
   const activeFolderId = settings.activeFolderId ?? null;
+
+  const setActiveDocument: React.Dispatch<React.SetStateAction<DocumentRecord | null>> = useCallback((next) => {
+    setActiveViewerTarget(null);
+    setActiveDocumentState(next);
+  }, []);
+
+  const openDocument = useCallback((document: DocumentRecord, target?: ViewerOpenTarget | null) => {
+    setActiveViewerTarget(target ?? null);
+    setActiveDocumentState(document);
+  }, []);
 
   const setActiveFolderId = useCallback((folderId: string | null) => {
     if ((settings.activeFolderId ?? null) === folderId) return;
@@ -205,6 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       readingsById, documentsById, foldersById,
       activeFolderId, setActiveFolderId,
       activeDocument, setActiveDocument,
+      activeViewerTarget, openDocument,
       refresh,
       rescanFolders: rescanFoldersContext,
       updateSort,

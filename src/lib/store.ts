@@ -75,6 +75,7 @@ export async function initStore() {
       openedAt INTEGER NOT NULL,
       completed INTEGER NOT NULL,
       completedAt INTEGER,
+      anchorOffset INTEGER,
       FOREIGN KEY(documentId) REFERENCES documents(documentId) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS bookmarks (
@@ -85,10 +86,13 @@ export async function initStore() {
       progress REAL NOT NULL,
       preview TEXT NOT NULL,
       createdAt INTEGER NOT NULL,
+      anchorOffset INTEGER,
       FOREIGN KEY(documentId) REFERENCES documents(documentId) ON DELETE CASCADE
     );
   `);
   try { await database.execAsync("ALTER TABLE documents ADD COLUMN toc TEXT;"); } catch {}
+  try { await database.execAsync("ALTER TABLE readings ADD COLUMN anchorOffset INTEGER;"); } catch {}
+  try { await database.execAsync("ALTER TABLE bookmarks ADD COLUMN anchorOffset INTEGER;"); } catch {}
 }
 
 export async function loadSettings(): Promise<ReaderSettings> {
@@ -340,8 +344,8 @@ export async function saveReading(reading: ReadingRecord) {
     const database = await db();
     await database.runAsync(
       `INSERT OR REPLACE INTO readings
-        (documentId, lastPage, totalPages, progress, openedAt, completed, completedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (documentId, lastPage, totalPages, progress, openedAt, completed, completedAt, anchorOffset)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       reading.documentId,
       reading.lastPage,
       reading.totalPages,
@@ -349,25 +353,39 @@ export async function saveReading(reading: ReadingRecord) {
       reading.openedAt,
       reading.completed ? 1 : 0,
       reading.completedAt ?? null,
+      reading.anchorOffset ?? null,
     );
   });
 }
 
 export async function toggleBookmark(bookmark: BookmarkRecord) {
   return writeTransaction(async (transaction) => {
-    const existing = await transaction.getFirstAsync<{ bookmarkId: string }>(
-      "SELECT bookmarkId FROM bookmarks WHERE documentId = ? AND page = ?",
-      bookmark.documentId,
-      bookmark.page,
-    );
+    const existing = bookmark.anchorOffset !== null && bookmark.anchorOffset !== undefined
+      ? await transaction.getFirstAsync<{ bookmarkId: string }>(
+        `SELECT bookmarkId FROM bookmarks
+          WHERE documentId = ? AND (bookmarkId = ? OR anchorOffset = ? OR page = ?)
+          LIMIT 1`,
+        bookmark.documentId,
+        bookmark.bookmarkId,
+        bookmark.anchorOffset,
+        bookmark.page,
+      )
+      : await transaction.getFirstAsync<{ bookmarkId: string }>(
+        `SELECT bookmarkId FROM bookmarks
+          WHERE documentId = ? AND (bookmarkId = ? OR page = ?)
+          LIMIT 1`,
+        bookmark.documentId,
+        bookmark.bookmarkId,
+        bookmark.page,
+      );
     if (existing) {
       await transaction.runAsync("DELETE FROM bookmarks WHERE bookmarkId = ?", existing.bookmarkId);
       return false;
     }
     await transaction.runAsync(
       `INSERT INTO bookmarks
-        (bookmarkId, documentId, page, totalPages, progress, preview, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (bookmarkId, documentId, page, totalPages, progress, preview, createdAt, anchorOffset)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       bookmark.bookmarkId,
       bookmark.documentId,
       bookmark.page,
@@ -375,8 +393,32 @@ export async function toggleBookmark(bookmark: BookmarkRecord) {
       bookmark.progress,
       bookmark.preview,
       bookmark.createdAt,
+      bookmark.anchorOffset ?? null,
     );
     return true;
+  });
+}
+
+export async function syncBookmarks(bookmarks: BookmarkRecord[]) {
+  if (!bookmarks.length) return;
+  await writeTransaction(async (transaction) => {
+    for (const bookmark of bookmarks) {
+      await transaction.runAsync(
+        `UPDATE bookmarks
+          SET page = ?,
+              totalPages = ?,
+              progress = ?,
+              preview = ?,
+              anchorOffset = ?
+          WHERE bookmarkId = ?`,
+        bookmark.page,
+        bookmark.totalPages,
+        bookmark.progress,
+        bookmark.preview,
+        bookmark.anchorOffset ?? null,
+        bookmark.bookmarkId,
+      );
+    }
   });
 }
 

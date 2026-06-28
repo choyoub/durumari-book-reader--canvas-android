@@ -63,6 +63,7 @@ export interface ReadingRecord {
   openedAt: number;
   completed: boolean;
   completedAt?: number;
+  anchorOffset?: number | null;
 }
 
 
@@ -82,9 +83,15 @@ export interface BookmarkRecord {
   progress: number;
   preview: string;
   createdAt: number;
+  anchorOffset?: number | null;
 }
 
 export interface LibraryRow extends DocumentRecord {
   folderName: string;
   reading?: ReadingRecord;
 }
+
+export type ViewerOpenTarget = {
+  type: "bookmark";
+  bookmarkId: string;
+};
