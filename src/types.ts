@@ -69,9 +69,10 @@ export interface ReadingRecord {
 
 
 export function readingStatus(reading?: ReadingRecord): ReadingStatus {
-  if (!reading || reading.lastPage <= 1) return "unread";
+  if (!reading) return "unread";
   if (reading.completed) return "completed";
   if (reading.lastPage >= reading.totalPages && reading.totalPages > 1) return "completed";
+  if (reading.lastPage <= 1) return "unread";
   return "reading";
 }
 

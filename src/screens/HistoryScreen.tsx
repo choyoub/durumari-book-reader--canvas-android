@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
@@ -55,16 +55,19 @@ export function HistoryScreen({ search }: { search: string }) {
           <Text style={[styles.thText, { color: settings.historySort.column === "progress" ? theme.accentText : theme.text, textAlign: "center" }]}>진행률{sortIndicator(settings.historySort, "progress")}</Text>
         </Pressable>
       </View>
-      <ScrollView>
-        {historyRows.length === 0 ? <EmptyState title="최근 읽은 문서가 없습니다." body="문서를 열고 페이지를 넘기면 여기에 기록됩니다." theme={theme} /> : historyRows.map(({ reading, document }) => (
-          <Pressable key={reading.documentId} onPress={() => setActiveDocument(document)} style={[styles.tableRow, { borderColor: theme.border }]}>
+      <FlatList
+        data={historyRows}
+        keyExtractor={({ reading }) => reading.documentId}
+        ListEmptyComponent={<EmptyState title="최근 읽은 문서가 없습니다." body="문서를 열고 페이지를 넘기면 여기에 기록됩니다." theme={theme} />}
+        renderItem={({ item: { reading, document } }) => (
+          <Pressable onPress={() => setActiveDocument(document)} style={[styles.tableRow, { borderColor: theme.border }]}>
             <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
             <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
             <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(reading.openedAt)}</Text>
             <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>{percent(reading.progress)}</Text>
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     </View>
   );
 }

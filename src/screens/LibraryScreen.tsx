@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
@@ -144,21 +144,23 @@ export function LibraryScreen({ search }: { search: string }) {
         </Pressable>
       </View>
 
-      {visibleRows.length === 0 ? (
-        <EmptyState
-          title={documents.length ? "검색 결과가 없습니다." : "아직 등록된 문서가 없습니다."}
-          body={documents.length ? "검색어를 지우거나 다른 제목을 찾아보세요." : "로컬 문서를 가져와 두루마리 서재를 시작하세요."}
-          action="문서 가져오기"
-          onAction={onImport}
-          theme={theme}
-        />
-      ) : (
-        <ScrollView>
-          {visibleRows.map((row) => {
+      <FlatList
+        data={visibleRows}
+        keyExtractor={(row) => row.documentId}
+        ListEmptyComponent={(
+          <EmptyState
+            title={documents.length ? "검색 결과가 없습니다." : "아직 등록된 문서가 없습니다."}
+            body={documents.length ? "검색어를 지우거나 다른 제목을 찾아보세요." : "로컬 문서를 가져와 두루마리 서재를 시작하세요."}
+            action="문서 가져오기"
+            onAction={onImport}
+            theme={theme}
+          />
+        )}
+        renderItem={({ item: row }) => {
             const status = readingStatus(row.reading);
             const statusColor = theme[status];
             return (
-              <Pressable key={row.documentId} onPress={() => setActiveDocument(row)} style={[styles.tableRow, { borderColor: theme.border }]}>
+              <Pressable onPress={() => setActiveDocument(row)} style={[styles.tableRow, { borderColor: theme.border }]}>
                 <Text numberOfLines={1} style={[styles.tdTitle, { flex: 5, color: statusColor, fontWeight: "600" }]}>{row.title}</Text>
                 <Text style={[styles.tdCell, { flex: 3, textAlign: "center", color: theme.secondary }]}>{formatDate(row.modifiedAt)}</Text>
                 <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: statusColor }]}>
@@ -166,9 +168,8 @@ export function LibraryScreen({ search }: { search: string }) {
                 </Text>
               </Pressable>
             );
-          })}
-        </ScrollView>
-      )}
+        }}
+      />
 
       {/* Folder Name Input Modal */}
       <Modal

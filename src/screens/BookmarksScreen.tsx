@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
@@ -55,10 +55,12 @@ export function BookmarksScreen({ search }: { search: string }) {
           <Text style={[styles.thText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.text, textAlign: "center" }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
         </Pressable>
       </View>
-      <ScrollView>
-        {bookmarkRows.length === 0 ? <EmptyState title="책갈피가 없습니다." body="뷰어에서 책갈피를 추가하면 이곳에서 바로 이동할 수 있습니다." theme={theme} /> : bookmarkRows.map(({ bookmark, document }) => (
+      <FlatList
+        data={bookmarkRows}
+        keyExtractor={({ bookmark }) => bookmark.bookmarkId}
+        ListEmptyComponent={<EmptyState title="책갈피가 없습니다." body="뷰어에서 책갈피를 추가하면 이곳에서 바로 이동할 수 있습니다." theme={theme} />}
+        renderItem={({ item: { bookmark, document } }) => (
           <Pressable
-            key={bookmark.bookmarkId}
             onPress={() => openDocument(document, { type: "bookmark", bookmarkId: bookmark.bookmarkId })}
             style={[styles.tableRow, { borderColor: theme.border }]}
           >
@@ -67,8 +69,8 @@ export function BookmarksScreen({ search }: { search: string }) {
             <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(bookmark.createdAt)}</Text>
             <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>p.{bookmark.page}</Text>
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     </View>
   );
 }

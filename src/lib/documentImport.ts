@@ -14,6 +14,8 @@ const ACCEPTED = [
   "application/x-gzip",
   "*/*",
 ];
+const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
+const MAX_INFLATED_BYTES = 500 * 1024 * 1024;
 
 function extension(name: string): BookKind | null {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -103,6 +105,7 @@ function attr(tag: string, name: string) {
 }
 
 async function textFromEpub(bytes: Uint8Array) {
+  if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("EPUB 파일 한도(100MB)를 초과했습니다.");
   const zip = await JSZip.loadAsync(bytes);
   const containerEntry = zip.file("META-INF/container.xml");
   if (!containerEntry) throw new Error("EPUB container.xml을 찾지 못했습니다.");
@@ -248,6 +251,7 @@ export async function hydrateDocumentFromBytes(
 }
 
 async function textFromZip(bytes: Uint8Array, forceEncoding?: string) {
+  if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("압축 파일 한도(100MB)를 초과했습니다.");
   if (bytes.byteLength > 100 * 1024 * 1024) throw new Error("압축 파일 한도(100MB)를 초과했습니다.");
   const zip = await JSZip.loadAsync(bytes);
   const allEntries = Object.values(zip.files);
@@ -265,6 +269,7 @@ async function textFromZip(bytes: Uint8Array, forceEncoding?: string) {
   for (const entry of entries) {
     const content = await entry.async("uint8array");
     inflated += content.byteLength;
+    if (inflated > MAX_INFLATED_BYTES) throw new Error("압축 해제 한도(500MB)를 초과했습니다.");
     if (inflated > 500 * 1024 * 1024) throw new Error("압축 해제 한도(500MB)를 초과했습니다.");
     if (content.byteLength > bytes.byteLength * 100) throw new Error("압축률 한도를 초과했습니다.");
     if (/\.epub$/i.test(entry.name)) {
@@ -277,8 +282,13 @@ async function textFromZip(bytes: Uint8Array, forceEncoding?: string) {
 }
 
 async function extractText(kind: BookKind, bytes: Uint8Array, forceEncoding?: string): Promise<{ text: string; toc?: { label: string; href: string; charOffset: number }[] }> {
+  if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("파일 가져오기 한도(100MB)를 초과했습니다.");
   if (kind === "txt") return { text: decodeText(bytes, forceEncoding) };
-  if (kind === "gz") return { text: decodeText(ungzip(bytes), forceEncoding) };
+  if (kind === "gz") {
+    const inflated = ungzip(bytes);
+    if (inflated.byteLength > MAX_INFLATED_BYTES) throw new Error("압축 해제 한도(500MB)를 초과했습니다.");
+    return { text: decodeText(inflated, forceEncoding) };
+  }
   if (kind === "zip") return { text: await textFromZip(bytes, forceEncoding) };
   return textFromEpub(bytes);
 }

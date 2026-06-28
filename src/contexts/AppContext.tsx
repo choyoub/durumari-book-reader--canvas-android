@@ -59,6 +59,9 @@ interface AppContextValue {
   openDocument: (document: DocumentRecord, target?: ViewerOpenTarget | null) => void;
 
   refresh: () => Promise<void>;
+  upsertReadingState: (reading: ReadingRecord) => void;
+  setBookmarkState: (bookmark: BookmarkRecord, active: boolean) => void;
+  syncBookmarkState: (bookmarks: BookmarkRecord[]) => void;
   rescanFolders: (options?: FolderSyncProgressListener | FolderSyncOptions) => Promise<void>;
   updateSort: (target: TabName, column: string) => Promise<void>;
 }
@@ -115,9 +118,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBookmarks(bookmarkRows);
   }, []);
 
+  const upsertReadingState = useCallback((reading: ReadingRecord) => {
+    setReadings((current) => {
+      const index = current.findIndex((item) => item.documentId === reading.documentId);
+      if (index < 0) return [reading, ...current];
+      const next = [...current];
+      next[index] = reading;
+      return next;
+    });
+  }, []);
+
+  const bookmarkMatches = useCallback((left: BookmarkRecord, right: BookmarkRecord) => (
+    left.bookmarkId === right.bookmarkId
+    || (
+      left.documentId === right.documentId
+      && (
+        left.page === right.page
+        || (
+          left.anchorOffset !== null
+          && left.anchorOffset !== undefined
+          && left.anchorOffset === right.anchorOffset
+        )
+      )
+    )
+  ), []);
+
+  const setBookmarkState = useCallback((bookmark: BookmarkRecord, active: boolean) => {
+    setBookmarks((current) => {
+      const withoutCurrent = current.filter((item) => !bookmarkMatches(item, bookmark));
+      return active ? [bookmark, ...withoutCurrent] : withoutCurrent;
+    });
+  }, [bookmarkMatches]);
+
+  const syncBookmarkState = useCallback((syncedBookmarks: BookmarkRecord[]) => {
+    if (!syncedBookmarks.length) return;
+    setBookmarks((current) => current.map((item) => (
+      syncedBookmarks.find((bookmark) => bookmark.bookmarkId === item.bookmarkId) ?? item
+    )));
+  }, []);
+
   const rescanFoldersContext = useCallback(async (options?: FolderSyncProgressListener | FolderSyncOptions) => {
     const onProgress = typeof options === 'function' ? options : options?.onProgress;
     const folderIds = typeof options === 'function' ? undefined : options?.folderIds;
+    while (rescanPromiseRef.current) {
+      await rescanPromiseRef.current;
+    }
     if (onProgress) rescanProgressListenersRef.current.add(onProgress);
 
     if (!rescanPromiseRef.current) {
@@ -221,6 +266,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeDocument, setActiveDocument,
       activeViewerTarget, openDocument,
       refresh,
+      upsertReadingState, setBookmarkState, syncBookmarkState,
       rescanFolders: rescanFoldersContext,
       updateSort,
     }}>

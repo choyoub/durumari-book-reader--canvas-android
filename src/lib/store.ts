@@ -179,6 +179,7 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
       folder.lastSyncedAt ?? null,
       folder.permissionStatus,
     );
+    if (folder.permissionStatus !== "granted") return;
     const existing = await transaction.getAllAsync<{
       documentId: string;
       contentHash: string;

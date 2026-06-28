@@ -275,6 +275,9 @@ export function ViewerScreen() {
     readingsById,
     bookmarks,
     refresh,
+    upsertReadingState,
+    setBookmarkState,
+    syncBookmarkState,
   } = useAppContext();
 
   const theme = themeTokens[settings.theme];
@@ -393,7 +396,7 @@ export function ViewerScreen() {
     setViewerPage(prev => ({ current: payload.currentPage, total: payload.totalPages, offset: payload.offset ?? prev.offset }));
     const prior = readingsById.get(activeDocument.documentId);
     const completed = Boolean(prior?.completed || payload.completed);
-    await saveReading({
+    const nextReading = {
       documentId: activeDocument.documentId,
       lastPage: payload.currentPage,
       totalPages: payload.totalPages,
@@ -402,14 +405,15 @@ export function ViewerScreen() {
       completed,
       completedAt: completed ? (prior?.completedAt ?? Date.now()) : undefined,
       anchorOffset: payload.offset ?? null,
-    });
+    };
+    await saveReading(nextReading);
+    upsertReadingState(nextReading);
     if (settings.pageTurnFeedback === "vibration") void Haptics.selectionAsync();
-    await refresh();
   }
 
   async function onBookmarkChanged(payload: { active: boolean; page: number; totalPages: number; progress: number; preview?: string; bookmarkId?: string; anchorOffset?: number | null; }) {
     if (!activeDocument) return;
-    await toggleBookmark({
+    const nextBookmark = {
       bookmarkId: payload.bookmarkId && !payload.bookmarkId.startsWith("local-")
         ? payload.bookmarkId
         : makeBookmarkId(activeDocument.documentId, payload.page),
@@ -420,21 +424,22 @@ export function ViewerScreen() {
       preview: payload.preview || activeDocument.title,
       createdAt: Date.now(),
       anchorOffset: payload.anchorOffset ?? null,
-    });
-    await refresh();
+    };
+    const active = await toggleBookmark(nextBookmark);
+    setBookmarkState(nextBookmark, active);
   }
 
   async function onBookmarksSynced(payload: { bookmarks: BookmarkRecord[] }) {
     const synced = payload.bookmarks.filter((item) => item.documentId === activeDocument?.documentId);
     if (!synced.length) return;
     await syncBookmarks(synced);
-    await refresh();
+    syncBookmarkState(synced);
   }
 
   async function onReadingSynced(payload: { reading: ReadingRecord }) {
     if (!activeDocument || payload.reading.documentId !== activeDocument.documentId) return;
     await saveReading(payload.reading);
-    await refresh();
+    upsertReadingState(payload.reading);
   }
 
   async function changeEncoding(encoding: string) {

@@ -9,6 +9,7 @@ describe("store domain logic", () => {
 
     it("should return completed if completed flag is true", () => {
       expect(readingStatus({ documentId: "1", lastPage: 5, totalPages: 10, progress: 0.5, openedAt: 0, completed: true })).toBe("completed");
+      expect(readingStatus({ documentId: "1", lastPage: 1, totalPages: 1, progress: 0, openedAt: 0, completed: true })).toBe("completed");
     });
 
     it("should return completed if lastPage >= totalPages and totalPages > 1", () => {
