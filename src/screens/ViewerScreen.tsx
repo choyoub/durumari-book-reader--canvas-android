@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, DeviceEventEmitter, Modal, NativeModules, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, DeviceEventEmitter, Modal, NativeModules, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CanvasReader } from "../components/CanvasReader";
 import { ScrollArtwork } from "../components/IntroScroll";
@@ -38,56 +39,124 @@ async function loadViewerDocument(document: DocumentRecord, forceEncoding?: stri
 function ViewerMenuModal({
   visible, title, current, total, theme, onClose, onBookmark, onNavigate, onSettings, onExit, hasToc, onToc, onEncodingChange,
 }: any) {
+  const insets = useSafeAreaInsets();
+  const dragY = useRef(new Animated.Value(0)).current;
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  const dragResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderGrant: () => {
+        dragY.stopAnimation();
+        dragY.setValue(0);
+      },
+      onPanResponderMove: (_event, gesture) => {
+        dragY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_event, gesture) => {
+        if (gesture.dy > 78 || (gesture.dy > 28 && gesture.vy > 0.9)) {
+          Animated.timing(dragY, {
+            toValue: 420,
+            duration: 170,
+            useNativeDriver: true,
+          }).start(() => {
+            dragY.setValue(0);
+            onCloseRef.current();
+          });
+          return;
+        }
+        Animated.spring(dragY, {
+          toValue: 0,
+          damping: 18,
+          stiffness: 220,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragY, {
+          toValue: 0,
+          damping: 18,
+          stiffness: 220,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
   const ratio = total <= 1 ? 0 : (current - 1) / Math.max(1, total - 1);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.menuBackdrop}>
-        <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
-          <View style={styles.modalTitle}>
-            <View style={styles.readerTitleWrap}>
-              <Text numberOfLines={1} style={[styles.modalHeading, { color: theme.text }]}>{title}</Text>
-              <Text style={[styles.readerMeta, { color: theme.secondary }]}>p.{current} / {total}</Text>
-            </View>
-            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="메뉴 닫기">
-              <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
-            </Pressable>
-          </View>
-          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-            <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` }]} />
-          </View>
-          <View style={styles.viewerActions}>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onBookmark} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>🔖</Text>
-              <Text style={{ color: theme.text }}>책갈피</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.viewerAction, { borderColor: theme.border, opacity: hasToc ? 1 : 0.4 }]}
-              onPress={onToc}
-              disabled={!hasToc}
+        <Animated.View style={[styles.bottomSheetStack, { transform: [{ translateY: dragY }] }]}>
+          <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View
+              style={styles.sheetDragArea}
               accessibilityRole="button"
+              accessibilityLabel="아래로 스와이프해서 메뉴 닫기"
+              {...dragResponder.panHandlers}
             >
-              <Text style={styles.viewerActionIcon}>📑</Text>
-              <Text style={{ color: theme.text }}>목차</Text>
-            </Pressable>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onNavigate} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>🧭</Text>
-              <Text style={{ color: theme.text }}>이동</Text>
-            </Pressable>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onEncodingChange} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>🔤</Text>
-              <Text style={{ color: theme.text }}>인코딩</Text>
-            </Pressable>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onSettings} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>⚙️</Text>
-              <Text style={{ color: theme.text }}>설정</Text>
-            </Pressable>
-            <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onExit} accessibilityRole="button">
-              <Text style={styles.viewerActionIcon}>📚</Text>
-              <Text style={{ color: theme.text }}>목록</Text>
-            </Pressable>
+              <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
+            </View>
+            <View style={styles.modalTitle}>
+              <View style={styles.readerTitleWrap}>
+                <Text numberOfLines={1} style={[styles.modalHeading, { color: theme.text }]}>{title}</Text>
+                <Text style={[styles.readerMeta, { color: theme.secondary }]}>p.{current} / {total}</Text>
+              </View>
+              <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="메뉴 닫기">
+                <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
+              </Pressable>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+              <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` }]} />
+            </View>
+            <View style={styles.viewerActions}>
+              <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onBookmark} accessibilityRole="button">
+                <Text style={styles.viewerActionIcon}>🔖</Text>
+                <Text style={{ color: theme.text }}>책갈피</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.viewerAction, { borderColor: theme.border, opacity: hasToc ? 1 : 0.4 }]}
+                onPress={onToc}
+                disabled={!hasToc}
+                accessibilityRole="button"
+              >
+                <Text style={styles.viewerActionIcon}>📑</Text>
+                <Text style={{ color: theme.text }}>목차</Text>
+              </Pressable>
+              <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onNavigate} accessibilityRole="button">
+                <Text style={styles.viewerActionIcon}>🧭</Text>
+                <Text style={{ color: theme.text }}>이동</Text>
+              </Pressable>
+              <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onEncodingChange} accessibilityRole="button">
+                <Text style={styles.viewerActionIcon}>🔤</Text>
+                <Text style={{ color: theme.text }}>인코딩</Text>
+              </Pressable>
+              <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onSettings} accessibilityRole="button">
+                <Text style={styles.viewerActionIcon}>⚙️</Text>
+                <Text style={{ color: theme.text }}>설정</Text>
+              </Pressable>
+              <Pressable style={[styles.viewerAction, { borderColor: theme.border }]} onPress={onExit} accessibilityRole="button">
+                <Text style={styles.viewerActionIcon}>📚</Text>
+                <Text style={{ color: theme.text }}>목록</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+          <View style={[styles.bottomSheetSafeGap, { height: insets.bottom, backgroundColor: theme.card }]} />
+        </Animated.View>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.bottomNavigationOverlay,
+            {
+              height: insets.bottom,
+              backgroundColor: theme.navigationBar,
+            },
+          ]}
+        />
       </View>
     </Modal>
   );
@@ -137,27 +206,31 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
 }
 
 function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.modalBackdrop}>
-        <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: "80%" }]}>
-          <View style={styles.modalTitle}>
-            <Text style={[styles.modalHeading, { color: theme.text }]}>목차</Text>
-            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="목차 닫기">
-              <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
-            </Pressable>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {toc?.map((item: any, index: number) => (
-              <Pressable
-                key={index}
-                style={{ paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }}
-                onPress={() => onSelect(item.charOffset)}
-              >
-                <Text style={{ color: theme.text, fontSize: 16 }}>{item.label}</Text>
+        <View style={styles.bottomSheetStack}>
+          <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: "80%" }]}>
+            <View style={styles.modalTitle}>
+              <Text style={[styles.modalHeading, { color: theme.text }]}>목차</Text>
+              <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="목차 닫기">
+                <Text style={[styles.closeButtonText, { color: theme.secondary }]}>×</Text>
               </Pressable>
-            ))}
-          </ScrollView>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {toc?.map((item: any, index: number) => (
+                <Pressable
+                  key={index}
+                  style={{ paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }}
+                  onPress={() => onSelect(item.charOffset)}
+                >
+                  <Text style={{ color: theme.text, fontSize: 16 }}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+          <View style={[styles.bottomSheetSafeGap, { height: insets.bottom, backgroundColor: theme.card }]} />
         </View>
       </View>
     </Modal>
@@ -644,8 +717,12 @@ const styles = StyleSheet.create({
   readerShell: { flex: 1 },
   centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
   menuBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.56)", justifyContent: "flex-end" },
+  bottomSheetStack: { width: "100%" },
+  bottomSheetSafeGap: { width: "100%" },
+  bottomNavigationOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20, elevation: 20 },
   viewerMenu: { width: "100%", borderTopWidth: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 28, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.22, shadowRadius: 14 },
-  sheetHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, marginBottom: 14 },
+  sheetDragArea: { height: 40, alignItems: "center", justifyContent: "center" },
+  sheetHandle: { width: 42, height: 5, borderRadius: 3 },
   modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   readerTitleWrap: { flex: 1, paddingRight: 16 },
   modalHeading: { fontSize: 18, fontWeight: "700" },
