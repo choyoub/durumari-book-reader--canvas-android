@@ -400,6 +400,13 @@ export async function toggleBookmark(bookmark: BookmarkRecord) {
   });
 }
 
+export async function deleteBookmark(bookmarkId: string) {
+  await enqueueWrite(async () => {
+    const database = await db();
+    await database.runAsync("DELETE FROM bookmarks WHERE bookmarkId = ?", bookmarkId);
+  });
+}
+
 export async function syncBookmarks(bookmarks: BookmarkRecord[]) {
   if (!bookmarks.length) return;
   await writeTransaction(async (transaction) => {

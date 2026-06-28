@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useRef } from "react";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
@@ -13,10 +13,12 @@ export function BookmarksScreen({ search }: { search: string }) {
     bookmarks,
     foldersById,
     openDocument,
+    removeBookmark,
     updateSort,
   } = useAppContext();
 
   const theme = themeTokens[settings.theme];
+  const ignorePressUntilRef = useRef(0);
 
   const bookmarkRows = useMemo(() => {
     const joined = bookmarks
@@ -37,6 +39,23 @@ export function BookmarksScreen({ search }: { search: string }) {
       return (a.bookmark.createdAt - b.bookmark.createdAt) * dir;
     });
   }, [bookmarks, documentsById, settings.bookmarksSort, search]);
+
+  function openBookmark(document: DocumentRecord, bookmark: BookmarkRecord) {
+    if (Date.now() < ignorePressUntilRef.current) return;
+    openDocument(document, { type: "bookmark", bookmarkId: bookmark.bookmarkId });
+  }
+
+  function askRemoveBookmark(bookmark: BookmarkRecord) {
+    ignorePressUntilRef.current = Date.now() + 700;
+    Alert.alert("책갈피 삭제", "이 책갈피를 삭제하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: () => void removeBookmark(bookmark.bookmarkId),
+      },
+    ]);
+  }
 
   return (
     <View style={styles.content}>
@@ -61,7 +80,9 @@ export function BookmarksScreen({ search }: { search: string }) {
         ListEmptyComponent={<EmptyState title="책갈피가 없습니다." body="뷰어에서 책갈피를 추가하면 이곳에서 바로 이동할 수 있습니다." theme={theme} />}
         renderItem={({ item: { bookmark, document } }) => (
           <Pressable
-            onPress={() => openDocument(document, { type: "bookmark", bookmarkId: bookmark.bookmarkId })}
+            onPress={() => openBookmark(document, bookmark)}
+            onLongPress={() => askRemoveBookmark(bookmark)}
+            delayLongPress={500}
             style={[styles.tableRow, { borderColor: theme.border }]}
           >
             <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>

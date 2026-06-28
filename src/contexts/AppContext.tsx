@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { defaultSettings, resolveActiveFolderId } from '../lib/settings';
 import { 
+  deleteBookmark,
   listFolders, 
   listDocuments, 
   listReadings, 
@@ -62,6 +63,7 @@ interface AppContextValue {
   upsertReadingState: (reading: ReadingRecord) => void;
   setBookmarkState: (bookmark: BookmarkRecord, active: boolean) => void;
   syncBookmarkState: (bookmarks: BookmarkRecord[]) => void;
+  removeBookmark: (bookmarkId: string) => Promise<void>;
   rescanFolders: (options?: FolderSyncProgressListener | FolderSyncOptions) => Promise<void>;
   updateSort: (target: TabName, column: string) => Promise<void>;
 }
@@ -155,6 +157,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBookmarks((current) => current.map((item) => (
       syncedBookmarks.find((bookmark) => bookmark.bookmarkId === item.bookmarkId) ?? item
     )));
+  }, []);
+
+  const removeBookmark = useCallback(async (bookmarkId: string) => {
+    try {
+      await deleteBookmark(bookmarkId);
+      setBookmarks((current) => current.filter((item) => item.bookmarkId !== bookmarkId));
+    } catch (error) {
+      Alert.alert("책갈피 삭제 실패", error instanceof Error ? error.message : "책갈피를 삭제하지 못했습니다.");
+    }
   }, []);
 
   const rescanFoldersContext = useCallback(async (options?: FolderSyncProgressListener | FolderSyncOptions) => {
@@ -266,7 +277,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeDocument, setActiveDocument,
       activeViewerTarget, openDocument,
       refresh,
-      upsertReadingState, setBookmarkState, syncBookmarkState,
+      upsertReadingState, setBookmarkState, syncBookmarkState, removeBookmark,
       rescanFolders: rescanFoldersContext,
       updateSort,
     }}>
