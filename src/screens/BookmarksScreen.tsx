@@ -59,36 +59,40 @@ export function BookmarksScreen({ search }: { search: string }) {
 
   return (
     <View style={styles.content}>
-      {/* Table header */}
-      <View style={[styles.tableHeader, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Pressable style={[styles.thCell, { flex: 2 }]} onPress={() => void updateSort("bookmarks", "folder")}>
-          <Text style={[styles.thText, { color: theme.text }]}>폴더</Text>
+      <View style={styles.sortBar}>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "bookTitle" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
+          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 4 }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "createdAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
+          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.secondary }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 2.5 }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.text, textAlign: "center" }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
-        </Pressable>
-        <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("bookmarks", "page")}>
-          <Text style={[styles.thText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.text, textAlign: "center" }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "page" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "page")}>
+          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.secondary }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
         </Pressable>
       </View>
       <FlatList
         data={bookmarkRows}
         keyExtractor={({ bookmark }) => bookmark.bookmarkId}
+        contentContainerStyle={bookmarkRows.length ? styles.listContent : styles.emptyListContent}
         ListEmptyComponent={<EmptyState title="책갈피가 없습니다." body="뷰어에서 책갈피를 추가하면 이곳에서 바로 이동할 수 있습니다." theme={theme} />}
         renderItem={({ item: { bookmark, document } }) => (
           <Pressable
             onPress={() => openBookmark(document, bookmark)}
             onLongPress={() => askRemoveBookmark(bookmark)}
             delayLongPress={500}
-            style={[styles.tableRow, { borderColor: theme.border }]}
+            style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}
           >
-            <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
-            <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
-            <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(bookmark.createdAt)}</Text>
-            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>p.{bookmark.page}</Text>
+            <View style={styles.cardHeader}>
+              <Text numberOfLines={2} style={[styles.title, { color: theme.text }]}>{document.title}</Text>
+              <View style={[styles.pageBadge, { borderColor: theme.accent, backgroundColor: `${theme.accent}1A` }]}>
+                <Text style={[styles.pageBadgeText, { color: theme.accentText }]}>p.{bookmark.page}</Text>
+              </View>
+            </View>
+            <Text numberOfLines={2} style={[styles.preview, { color: theme.secondary }]}>{bookmark.preview || document.title}</Text>
+            <View style={styles.metaRow}>
+              <Text numberOfLines={1} style={[styles.meta, { color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
+              <Text style={[styles.meta, { color: theme.secondary }]}>{formatDate(bookmark.createdAt)}</Text>
+            </View>
           </Pressable>
         )}
       />
@@ -98,10 +102,17 @@ export function BookmarksScreen({ search }: { search: string }) {
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  tableHeader: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10, paddingHorizontal: 10 },
-  thCell: { paddingHorizontal: 4, alignItems: "center" },
-  thText: { fontSize: 12, fontWeight: "700", textAlign: "center" },
-  tableRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
-  tdTitle: { fontSize: 13, paddingHorizontal: 4 },
-  tdCell: { fontSize: 13, paddingHorizontal: 4 },
+  sortBar: { minHeight: 46, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, flexDirection: "row", gap: 8 },
+  sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
+  sortPillText: { fontSize: 12, fontWeight: "800" },
+  listContent: { paddingHorizontal: 16, paddingBottom: 18, gap: 10 },
+  emptyListContent: { flexGrow: 1 },
+  card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  title: { flex: 1, fontSize: 16, lineHeight: 22, fontWeight: "800" },
+  pageBadge: { minHeight: 28, paddingHorizontal: 10, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  pageBadgeText: { fontSize: 12, fontWeight: "900" },
+  preview: { fontSize: 13, lineHeight: 18 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  meta: { flexShrink: 1, fontSize: 12, fontWeight: "600" },
 });

@@ -32,6 +32,6 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyBody: { fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 12 },
-  primaryButton: { height: 46, paddingHorizontal: 24, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  primaryButton: { height: 48, paddingHorizontal: 24, alignItems: "center", justifyContent: "center", borderRadius: 14 },
   accentButtonText: { fontWeight: "700", fontSize: 16 },
 });

@@ -41,8 +41,9 @@ function ViewerMenuModal({
   const ratio = total <= 1 ? 0 : (current - 1) / Math.max(1, total - 1);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.centerBackdrop}>
+      <View style={styles.menuBackdrop}>
         <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
           <View style={styles.modalTitle}>
             <View style={styles.readerTitleWrap}>
               <Text numberOfLines={1} style={[styles.modalHeading, { color: theme.text }]}>{title}</Text>
@@ -642,7 +643,9 @@ export function ViewerScreen() {
 const styles = StyleSheet.create({
   readerShell: { flex: 1 },
   centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
-  viewerMenu: { width: "86%", maxWidth: 380, borderWidth: 1, borderRadius: 12, padding: 18, elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  menuBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.56)", justifyContent: "flex-end" },
+  viewerMenu: { width: "100%", borderTopWidth: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 28, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.22, shadowRadius: 14 },
+  sheetHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, marginBottom: 14 },
   modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   readerTitleWrap: { flex: 1, paddingRight: 16 },
   modalHeading: { fontSize: 18, fontWeight: "700" },
@@ -651,8 +654,8 @@ const styles = StyleSheet.create({
   readerMeta: { fontSize: 13, marginTop: 4 },
   progressTrack: { height: 4, borderRadius: 2, marginBottom: 24, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 2 },
-  viewerActions: { flexDirection: "row", flexWrap: "wrap", gap: 9, justifyContent: "space-between" },
-  viewerAction: { width: "31%", height: 88, borderWidth: 1, borderRadius: 8, alignItems: "center", justifyContent: "center", gap: 7 },
+  viewerActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
+  viewerAction: { width: "31%", height: 82, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 },
   viewerActionIcon: { fontSize: 23 },
   popupButton: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderRadius: 8 },
   viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 24, paddingTop: 18, paddingBottom: 20 },
@@ -663,8 +666,8 @@ const styles = StyleSheet.create({
   viewerLoadingFill: { height: "100%", borderRadius: 2 },
   viewerLoadingText: { minHeight: 18, marginTop: 10, fontSize: 12, fontWeight: "600", textAlign: "center" },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  settingsSheet: { borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 14, gap: 14, paddingBottom: 32 },
-  pageDialog: { width: 300, borderWidth: 1, borderRadius: 8, padding: 18 },
+  settingsSheet: { borderTopWidth: 1, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 14, gap: 14, paddingBottom: 32 },
+  pageDialog: { width: 320, borderWidth: 1, borderRadius: 18, padding: 18 },
   pageInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 12 },
   pageInput: { width: 100, height: 46, borderWidth: 1, borderRadius: 4, fontSize: 20, textAlign: "center", fontWeight: "700" },
   pageSliderRow: { height: 32, justifyContent: "center", marginBottom: 18 },
@@ -672,8 +675,8 @@ const styles = StyleSheet.create({
   pageSliderFill: { height: "100%", borderRadius: 3 },
   pageSliderThumb: { position: "absolute", width: 22, height: 22, marginLeft: -11, borderRadius: 11, borderWidth: 2 },
   quickGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
-  secondaryButton: { flex: 1, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 4 },
-  primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  secondaryButton: { flex: 1, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  primaryButton: { height: 48, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   accentButtonText: { fontWeight: "700", fontSize: 16 },
   pageHint: { textAlign: "center", marginTop: 12, fontSize: 13 },
 });
