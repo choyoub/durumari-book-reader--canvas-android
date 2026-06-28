@@ -46,7 +46,5 @@ dist-build-check/
 /ios
 /android
 
-# local agent/work notes
-.claude/
-CLAUDE.md
+# local work notes
 tasks.md
