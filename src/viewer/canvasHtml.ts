@@ -424,25 +424,41 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       }
     }
 
-    function drawBookmarkFold(pageNum, target, width, theme) {
+    function hexToRgba(hex, alpha) {
+      const raw = String(hex || "").replace("#", "");
+      if (!/^[0-9a-fA-F]{6}$/.test(raw)) return "rgba(0,0,0," + alpha + ")";
+      const r = parseInt(raw.slice(0, 2), 16);
+      const g = parseInt(raw.slice(2, 4), 16);
+      const b = parseInt(raw.slice(4, 6), 16);
+      return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+    }
+
+    function drawBookmarkCornerMarker(pageNum, target, width, height, theme) {
       if (!bookmarkForPage(pageNum)) return;
-      const size = 48;
-      const fold = target.createLinearGradient(width - size, 0, width, size);
-      fold.addColorStop(0, theme.dog);
-      fold.addColorStop(1, theme.crease);
-      target.fillStyle = fold;
+      const size = 24;
+      target.save();
+      target.fillStyle = theme.dog;
       target.beginPath();
       target.moveTo(width - size, 0);
       target.lineTo(width, 0);
       target.lineTo(width, size);
       target.closePath();
       target.fill();
-      target.strokeStyle = theme.crease;
-      target.lineWidth = 1.5;
+      target.strokeStyle = settings.theme === "dark" ? hexToRgba(theme.crease, 0.86) : theme.crease;
+      target.lineWidth = 1.25;
       target.beginPath();
-      target.moveTo(width - size, 0);
-      target.lineTo(width, size);
+      target.moveTo(width - size, 0.5);
+      target.lineTo(width - 0.5, size);
       target.stroke();
+      target.strokeStyle = settings.theme === "dark" || settings.theme === "chalk"
+        ? hexToRgba(theme.accent, 0.62)
+        : hexToRgba(theme.accent, 0.72);
+      target.lineWidth = 2;
+      target.beginPath();
+      target.moveTo(width - 11, 3);
+      target.lineTo(width - 3, 11);
+      target.stroke();
+      target.restore();
     }
 
     function drawPage(pageNum, target, width, height, theme) {
@@ -470,7 +486,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       target.textBaseline = "middle";
       target.fillText(pageNum + " / " + totalPages(), width / 2, height - 24);
       target.restore();
-      drawBookmarkFold(pageNum, target, width, theme);
+      drawBookmarkCornerMarker(pageNum, target, width, height, theme);
     }
 
     function getPageSurface(pageNum) {

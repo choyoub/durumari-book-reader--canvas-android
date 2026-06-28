@@ -291,8 +291,9 @@ function AppContent() {
         />
       ) : (
         <>
-        <View style={[styles.header, { borderColor: theme.border }]}>
+        <View style={[styles.header, { borderColor: theme.border, backgroundColor: theme.bg }]}>
           <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.searchIcon, { color: theme.secondary }]}>⌕</Text>
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -311,18 +312,29 @@ function AppContent() {
             setDraftSettings(settings);
             setSettingsOpen(true);
           }}>
-            <Text style={{ color: theme.text }}>⚙️ 설정</Text>
+            <Text style={[styles.smallButtonText, { color: theme.accentText }]}>⚙</Text>
           </Pressable>
         </View>
 
-        <View style={[styles.tabs, { borderColor: theme.border }]}>
+        <View style={[styles.tabsWrap, { backgroundColor: theme.bg }]}>
+        <View style={[styles.tabs, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {MAIN_TABS.map((name) => (
-            <Pressable key={name} style={[styles.tab, tab === name && { borderBottomColor: theme.accent }]} onPress={() => setTab(name)}>
-              <Text style={[styles.tabText, { color: tab === name ? theme.accentText : theme.secondary }]}>
-                {name === "library" ? "📚 목록" : name === "history" ? "🕘 히스토리" : "🔖 책갈피"}
+            <Pressable
+              key={name}
+              style={[
+                styles.tab,
+                tab === name && { backgroundColor: theme.accent },
+              ]}
+              onPress={() => setTab(name)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === name }}
+            >
+              <Text style={[styles.tabText, { color: tab === name ? theme.accentForeground : theme.secondary }]}>
+                {name === "library" ? "목록" : name === "history" ? "히스토리" : "책갈피"}
               </Text>
             </Pressable>
           ))}
+        </View>
         </View>
 
         <MainTabPager search={search} tab={tab} onTabChange={setTab} />
@@ -346,12 +358,15 @@ export default function App() {
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
-  header: { minHeight: 58, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 10 },
-  smallButton: { minHeight: 34, paddingHorizontal: 14, borderWidth: 1, justifyContent: "center", borderRadius: 4 },
-  searchBox: { flex: 1, height: 42, borderWidth: 1, paddingHorizontal: 12, justifyContent: "center", borderRadius: 4 },
-  searchInput: { fontSize: 15 },
+  header: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 10 },
+  smallButton: { width: 44, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 14 },
+  smallButtonText: { fontSize: 19, fontWeight: "800" },
+  searchBox: { flex: 1, height: 46, borderWidth: 1, paddingHorizontal: 14, alignItems: "center", flexDirection: "row", borderRadius: 14 },
+  searchIcon: { width: 22, fontSize: 22, lineHeight: 24, marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 16, paddingVertical: 0 },
   headerSpacer: { flex: 1 },
-  tabs: { height: 46, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row" },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", borderBottomWidth: 3, borderBottomColor: "transparent" },
-  tabText: { fontWeight: "700" },
+  tabsWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
+  tabs: { minHeight: 44, borderWidth: 1, borderRadius: 14, flexDirection: "row", padding: 4, gap: 4 },
+  tab: { flex: 1, minHeight: 34, alignItems: "center", justifyContent: "center", borderRadius: 10 },
+  tabText: { fontWeight: "800", fontSize: 14 },
 });

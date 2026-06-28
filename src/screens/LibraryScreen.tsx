@@ -93,9 +93,12 @@ export function LibraryScreen({ search }: { search: string }) {
     ]);
   }
 
+  function statusLabel(status: ReturnType<typeof readingStatus>) {
+    return status === "unread" ? "미독" : status === "reading" ? "읽는 중" : "완독";
+  }
+
   return (
     <View style={styles.content}>
-      {/* Folder Tabs */}
       <View style={styles.folderBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderChips}>
           {folders.map((folder) => {
@@ -108,16 +111,15 @@ export function LibraryScreen({ search }: { search: string }) {
                   style={[styles.chip, {
                     backgroundColor: isActive ? theme.accent : theme.card,
                     borderColor: isError ? "#E53935" : isActive ? theme.accent : theme.border,
-                    paddingRight: 6,
                   }]}
                 >
-                  <Text numberOfLines={1} style={{ color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.text, fontWeight: isActive ? "800" : "400", maxWidth: 120 }}>
+                  <Text numberOfLines={1} style={[styles.chipText, { color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.text }]}>
                     {isError ? "⚠️ " : ""}{folder.displayName}
                   </Text>
                   <Pressable
                     onPress={() => askRemoveFolder(folder.folderId)}
                     hitSlop={6}
-                    style={{ marginLeft: 6, width: 20, height: 20, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)" }}
+                    style={[styles.chipRemove, { backgroundColor: isActive ? "rgba(255,255,255,0.24)" : "rgba(0,0,0,0.06)" }]}
                   >
                     <Text style={{ fontSize: 11, fontWeight: "800", color: isActive ? theme.accentForeground : theme.secondary }}>✕</Text>
                   </Pressable>
@@ -126,27 +128,27 @@ export function LibraryScreen({ search }: { search: string }) {
             );
           })}
           <Pressable style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={onImport} disabled={importing}>
-            <Text style={{ color: theme.accentText, fontWeight: "800" }}>{importing ? "🔄 동기화 중" : "+ 📁"}</Text>
+            <Text style={[styles.chipText, { color: theme.accentText }]}>{importing ? "동기화 중" : "+ 폴더"}</Text>
           </Pressable>
         </ScrollView>
       </View>
 
-      {/* Table header */}
-      <View style={[styles.tableHeader, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Pressable style={[styles.thCell, { flex: 5 }]} onPress={() => void updateSort("library", "title")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
+      <View style={styles.sortBar}>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "title" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "title")}>
+          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 3 }]} onPress={() => void updateSort("library", "modifiedAt")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.text, textAlign: "center" }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "modifiedAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "modifiedAt")}>
+          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.secondary }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("library", "status")}>
-          <Text style={[styles.thText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.text, textAlign: "center" }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "status" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "status")}>
+          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.secondary }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
         </Pressable>
       </View>
 
       <FlatList
         data={visibleRows}
         keyExtractor={(row) => row.documentId}
+        contentContainerStyle={visibleRows.length ? styles.listContent : styles.emptyListContent}
         ListEmptyComponent={(
           <EmptyState
             title={documents.length ? "검색 결과가 없습니다." : "아직 등록된 문서가 없습니다."}
@@ -159,13 +161,27 @@ export function LibraryScreen({ search }: { search: string }) {
         renderItem={({ item: row }) => {
             const status = readingStatus(row.reading);
             const statusColor = theme[status];
+            const progress = row.reading ? Math.round(row.reading.progress * 100) : 0;
             return (
-              <Pressable onPress={() => setActiveDocument(row)} style={[styles.tableRow, { borderColor: theme.border }]}>
-                <Text numberOfLines={1} style={[styles.tdTitle, { flex: 5, color: statusColor, fontWeight: "600" }]}>{row.title}</Text>
-                <Text style={[styles.tdCell, { flex: 3, textAlign: "center", color: theme.secondary }]}>{formatDate(row.modifiedAt)}</Text>
-                <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: statusColor }]}>
-                  {status === "unread" ? "미독" : status === "reading" ? "읽는 중" : "완독"}
-                </Text>
+              <Pressable onPress={() => setActiveDocument(row)} style={[styles.bookCard, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                <View style={styles.bookCardHeader}>
+                  <Text numberOfLines={2} style={[styles.bookTitle, { color: theme.text }]}>{row.title}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: `${statusColor}1A`, borderColor: statusColor }]}>
+                    <Text style={[styles.statusBadgeText, { color: statusColor }]}>{statusLabel(status)}</Text>
+                  </View>
+                </View>
+                <View style={styles.bookMetaRow}>
+                  <Text numberOfLines={1} style={[styles.bookMeta, { color: theme.secondary }]}>{row.folderName}</Text>
+                  <Text style={[styles.bookMeta, { color: theme.secondary }]}>{formatDate(row.modifiedAt)}</Text>
+                </View>
+                {status !== "unread" ? (
+                  <View style={styles.progressRow}>
+                    <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+                      <View style={[styles.progressFill, { backgroundColor: statusColor, width: `${Math.max(4, progress)}%` }]} />
+                    </View>
+                    <Text style={[styles.progressText, { color: statusColor }]}>{progress}%</Text>
+                  </View>
+                ) : null}
               </Pressable>
             );
         }}
@@ -209,20 +225,32 @@ export function LibraryScreen({ search }: { search: string }) {
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  folderBar: { minHeight: 48 },
-  folderChips: { paddingHorizontal: 14, gap: 8, alignItems: "center" },
-  chip: { minHeight: 32, maxWidth: 180, paddingHorizontal: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row" },
-  tableHeader: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10, paddingHorizontal: 10 },
-  thCell: { paddingHorizontal: 4, alignItems: "center" },
-  thText: { fontSize: 12, fontWeight: "700", textAlign: "center" },
-  tableRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
-  tdTitle: { fontSize: 13, paddingHorizontal: 4 },
-  tdCell: { fontSize: 13, paddingHorizontal: 4 },
+  folderBar: { minHeight: 52 },
+  folderChips: { paddingHorizontal: 16, paddingVertical: 6, gap: 8, alignItems: "center" },
+  chip: { minHeight: 36, maxWidth: 210, paddingHorizontal: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", borderRadius: 18 },
+  chipText: { fontSize: 13, fontWeight: "800", maxWidth: 136 },
+  chipRemove: { marginLeft: 8, width: 22, height: 22, alignItems: "center", justifyContent: "center", borderRadius: 11 },
+  sortBar: { minHeight: 42, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, flexDirection: "row", gap: 8 },
+  sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
+  sortPillText: { fontSize: 12, fontWeight: "800" },
+  listContent: { paddingHorizontal: 16, paddingBottom: 18, gap: 10 },
+  emptyListContent: { flexGrow: 1 },
+  bookCard: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
+  bookCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  bookTitle: { flex: 1, fontSize: 16, lineHeight: 22, fontWeight: "800" },
+  statusBadge: { minHeight: 28, paddingHorizontal: 10, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  statusBadgeText: { fontSize: 12, fontWeight: "900" },
+  bookMetaRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  bookMeta: { flexShrink: 1, fontSize: 12, fontWeight: "600" },
+  progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  progressTrack: { flex: 1, height: 5, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
+  progressText: { width: 38, textAlign: "right", fontSize: 12, fontWeight: "900" },
   centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
-  pageDialog: { width: 300, borderWidth: 1, borderRadius: 8, padding: 18, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+  pageDialog: { width: 320, borderWidth: 1, borderRadius: 18, padding: 18, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
   modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalHeading: { fontSize: 18, fontWeight: "700" },
-  pageInput: { height: 42, borderWidth: 1, paddingHorizontal: 12, borderRadius: 4, fontSize: 16, textAlign: "center" },
-  primaryButton: { height: 46, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  pageInput: { height: 44, borderWidth: 1, paddingHorizontal: 12, borderRadius: 12, fontSize: 16, textAlign: "center" },
+  primaryButton: { height: 48, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   accentButtonText: { fontWeight: "700", fontSize: 16 },
 });

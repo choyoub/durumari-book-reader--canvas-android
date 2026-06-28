@@ -121,6 +121,9 @@ describe("canvasHtml", () => {
     expect(() => new Function(script!)).not.toThrow();
     expect(html).toContain('"targetBookmarkId":"bookmark-1"');
     expect(html).toContain("function resolveAnchorOffset");
+    expect(html).toContain("function drawBookmarkCornerMarker");
+    expect(html).toContain("const size = 24");
+    expect(html).toContain("target.moveTo(width - size, 0)");
     expect(html).toContain("function syncReading");
     expect(html).toContain("function syncBookmarks");
     expect(html).toContain('post("readingSynced"');

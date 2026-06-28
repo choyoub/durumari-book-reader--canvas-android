@@ -40,31 +40,35 @@ export function HistoryScreen({ search }: { search: string }) {
 
   return (
     <View style={styles.content}>
-      {/* Table header */}
-      <View style={[styles.tableHeader, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Pressable style={[styles.thCell, { flex: 2 }]} onPress={() => void updateSort("history", "folder")}>
-          <Text style={[styles.thText, { color: theme.text }]}>폴더</Text>
+      <View style={styles.sortBar}>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.historySort.column === "name" ? theme.card : "transparent" }]} onPress={() => void updateSort("history", "name")}>
+          <Text style={[styles.sortPillText, { color: settings.historySort.column === "name" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.historySort, "name")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 4 }]} onPress={() => void updateSort("history", "name")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "name" ? theme.accentText : theme.text }]}>제목{sortIndicator(settings.historySort, "name")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.historySort.column === "openedAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("history", "openedAt")}>
+          <Text style={[styles.sortPillText, { color: settings.historySort.column === "openedAt" ? theme.accentText : theme.secondary }]}>읽은 일자{sortIndicator(settings.historySort, "openedAt")}</Text>
         </Pressable>
-        <Pressable style={[styles.thCell, { flex: 2.5 }]} onPress={() => void updateSort("history", "openedAt")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "openedAt" ? theme.accentText : theme.text, textAlign: "center" }]}>읽은 일자{sortIndicator(settings.historySort, "openedAt")}</Text>
-        </Pressable>
-        <Pressable style={[styles.thCell, { flex: 1.5 }]} onPress={() => void updateSort("history", "progress")}>
-          <Text style={[styles.thText, { color: settings.historySort.column === "progress" ? theme.accentText : theme.text, textAlign: "center" }]}>진행률{sortIndicator(settings.historySort, "progress")}</Text>
+        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.historySort.column === "progress" ? theme.card : "transparent" }]} onPress={() => void updateSort("history", "progress")}>
+          <Text style={[styles.sortPillText, { color: settings.historySort.column === "progress" ? theme.accentText : theme.secondary }]}>진행률{sortIndicator(settings.historySort, "progress")}</Text>
         </Pressable>
       </View>
       <FlatList
         data={historyRows}
         keyExtractor={({ reading }) => reading.documentId}
+        contentContainerStyle={historyRows.length ? styles.listContent : styles.emptyListContent}
         ListEmptyComponent={<EmptyState title="최근 읽은 문서가 없습니다." body="문서를 열고 페이지를 넘기면 여기에 기록됩니다." theme={theme} />}
         renderItem={({ item: { reading, document } }) => (
-          <Pressable onPress={() => setActiveDocument(document)} style={[styles.tableRow, { borderColor: theme.border }]}>
-            <Text numberOfLines={1} style={[styles.tdCell, { flex: 2, color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
-            <Text numberOfLines={1} style={[styles.tdTitle, { flex: 4, color: theme.text }]}>{document.title}</Text>
-            <Text style={[styles.tdCell, { flex: 2.5, textAlign: "center", color: theme.secondary }]}>{formatDate(reading.openedAt)}</Text>
-            <Text style={[styles.tdCell, { flex: 1.5, textAlign: "center", fontWeight: "600", color: theme.accentText }]}>{percent(reading.progress)}</Text>
+          <Pressable onPress={() => setActiveDocument(document)} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <View style={styles.cardHeader}>
+              <Text numberOfLines={2} style={[styles.title, { color: theme.text }]}>{document.title}</Text>
+              <Text style={[styles.progress, { color: theme.accentText }]}>{percent(reading.progress)}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text numberOfLines={1} style={[styles.meta, { color: theme.secondary }]}>{foldersById.get(document.folderId)?.displayName ?? "로컬"}</Text>
+              <Text style={[styles.meta, { color: theme.secondary }]}>{formatDate(reading.openedAt)}</Text>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+              <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${Math.max(4, Math.round(reading.progress * 100))}%` }]} />
+            </View>
           </Pressable>
         )}
       />
@@ -74,10 +78,17 @@ export function HistoryScreen({ search }: { search: string }) {
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  tableHeader: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10, paddingHorizontal: 10 },
-  thCell: { paddingHorizontal: 4, alignItems: "center" },
-  thText: { fontSize: 12, fontWeight: "700", textAlign: "center" },
-  tableRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
-  tdTitle: { fontSize: 13, paddingHorizontal: 4 },
-  tdCell: { fontSize: 13, paddingHorizontal: 4 },
+  sortBar: { minHeight: 46, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, flexDirection: "row", gap: 8 },
+  sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
+  sortPillText: { fontSize: 12, fontWeight: "800" },
+  listContent: { paddingHorizontal: 16, paddingBottom: 18, gap: 10 },
+  emptyListContent: { flexGrow: 1 },
+  card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  title: { flex: 1, fontSize: 16, lineHeight: 22, fontWeight: "800" },
+  progress: { minWidth: 44, textAlign: "right", fontSize: 15, fontWeight: "900" },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  meta: { flexShrink: 1, fontSize: 12, fontWeight: "600" },
+  progressTrack: { height: 5, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
 });
