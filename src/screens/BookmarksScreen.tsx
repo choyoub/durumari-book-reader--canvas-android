@@ -1,12 +1,12 @@
 import React, { useMemo, useRef } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
 import { BookmarkRecord, DocumentRecord } from "../types";
 import { formatDate, sortIndicator } from "../lib/listFormat";
 
-export function BookmarksScreen({ search }: { search: string }) {
+export function BookmarksScreen({ search, onSearchChange }: { search: string; onSearchChange: (search: string) => void }) {
   const {
     settings,
     documentsById,
@@ -59,16 +59,28 @@ export function BookmarksScreen({ search }: { search: string }) {
 
   return (
     <View style={styles.content}>
-      <View style={styles.sortBar}>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "bookTitle" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
-          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
-        </Pressable>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "createdAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
-          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.secondary }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
-        </Pressable>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "page" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "page")}>
-          <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.secondary }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
-        </Pressable>
+      <View style={[styles.sortBar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+        <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            value={search}
+            onChangeText={onSearchChange}
+            placeholder="책갈피 제목 검색"
+            placeholderTextColor={theme.secondary}
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroller} contentContainerStyle={styles.sortControls}>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "bookTitle" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
+            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "createdAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
+            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.secondary }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "page" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "page")}>
+            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.secondary }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
+          </Pressable>
+        </ScrollView>
       </View>
       <FlatList
         data={bookmarkRows}
@@ -102,10 +114,15 @@ export function BookmarksScreen({ search }: { search: string }) {
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  sortBar: { minHeight: 46, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, flexDirection: "row", gap: 8 },
+  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  searchBox: { width: "42%", minWidth: 120, maxWidth: 260, height: 36, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", flexDirection: "row", borderRadius: 18 },
+  searchIcon: { width: 22, fontSize: 16, lineHeight: 20, marginRight: 6, textAlign: "center" },
+  searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
+  sortScroller: { flex: 1 },
+  sortControls: { flexGrow: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
   sortPillText: { fontSize: 12, fontWeight: "800" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 18, gap: 10 },
+  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, gap: 10 },
   emptyListContent: { flexGrow: 1 },
   card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },

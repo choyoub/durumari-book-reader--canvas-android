@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Alert, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
+import { ResponsiveDialogSurface } from "../components/ResponsiveFrame";
 import { themeTokens } from "../lib/settings";
 import { DocumentRecord, FolderRecord, LibraryRow, readingStatus } from "../types";
 import { chooseSafFolder } from "../lib/safImport";
@@ -9,7 +10,7 @@ import { pickDocuments } from "../lib/documentImport";
 import { replaceFolderDocuments, removeFolder } from "../lib/store";
 import { formatDate, sortIndicator } from "../lib/listFormat";
 
-export function LibraryScreen({ search }: { search: string }) {
+export function LibraryScreen({ search, onSearchChange }: { search: string; onSearchChange: (search: string) => void }) {
   const {
     settings,
     folders,
@@ -30,11 +31,13 @@ export function LibraryScreen({ search }: { search: string }) {
 
   const theme = themeTokens[settings.theme];
 
-  const rows: LibraryRow[] = useMemo(() => documents.map((document) => ({
-    ...document,
-    folderName: foldersById.get(document.folderId)?.displayName ?? "로컬 문서",
-    reading: readingsById.get(document.documentId),
-  })), [documents, foldersById, readingsById]);
+  const rows: LibraryRow[] = useMemo(() => {
+    return documents.map((document) => ({
+      ...document,
+      folderName: foldersById.get(document.folderId)?.displayName ?? "로컬 문서",
+      reading: readingsById.get(document.documentId),
+    }));
+  }, [documents, foldersById, readingsById]);
 
   const visibleRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -99,7 +102,7 @@ export function LibraryScreen({ search }: { search: string }) {
 
   return (
     <View style={styles.content}>
-      <View style={styles.folderBar}>
+      <View style={[styles.folderBar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderChips}>
           {folders.map((folder) => {
             const isActive = activeFolderId === folder.folderId;
@@ -109,13 +112,15 @@ export function LibraryScreen({ search }: { search: string }) {
                 <Pressable
                   onPress={() => setActiveFolderId(folder.folderId)}
                   style={[styles.chip, {
-                    backgroundColor: isActive ? theme.accent : theme.card,
-                    borderColor: isError ? "#E53935" : isActive ? theme.accent : theme.border,
+                    backgroundColor: theme.card,
+                    borderColor: isError ? "#E53935" : theme.border,
                   }]}
                 >
-                  <Text numberOfLines={1} style={[styles.chipText, { color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.text }]}>
-                    {isError ? "⚠️ " : ""}{folder.displayName}
-                  </Text>
+                  <View style={[styles.chipLabel, isActive && { backgroundColor: theme.accent }]}>
+                    <Text numberOfLines={1} style={[styles.chipText, { color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.secondary }]}>
+                      {isError ? "⚠️ " : ""}{folder.displayName}
+                    </Text>
+                  </View>
                   <Pressable
                     onPress={() => askRemoveFolder(folder.folderId)}
                     hitSlop={6}
@@ -127,22 +132,34 @@ export function LibraryScreen({ search }: { search: string }) {
               </View>
             );
           })}
-          <Pressable style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={onImport} disabled={importing}>
-            <Text style={[styles.chipText, { color: theme.accentText }]}>{importing ? "동기화 중" : "+ 폴더"}</Text>
+          <Pressable style={[styles.addChip, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={onImport} disabled={importing}>
+            <Text style={[styles.addChipText, { color: theme.accentText }]}>{importing ? "동기화 중" : "+ 폴더"}</Text>
           </Pressable>
         </ScrollView>
       </View>
 
-      <View style={styles.sortBar}>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "title" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "title")}>
-          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
-        </Pressable>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "modifiedAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "modifiedAt")}>
-          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.secondary }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
-        </Pressable>
-        <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "status" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "status")}>
-          <Text style={[styles.sortPillText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.secondary }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
-        </Pressable>
+      <View style={[styles.sortBar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+        <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            value={search}
+            onChangeText={onSearchChange}
+            placeholder="현재 폴더 제목 검색"
+            placeholderTextColor={theme.secondary}
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroller} contentContainerStyle={styles.sortControls}>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "title" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "title")}>
+            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "modifiedAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "modifiedAt")}>
+            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.secondary }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "status" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "status")}>
+            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.secondary }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
       <FlatList
@@ -197,7 +214,7 @@ export function LibraryScreen({ search }: { search: string }) {
         navigationBarTranslucent
       >
         <View style={styles.centerBackdrop}>
-          <View style={[styles.pageDialog, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <ResponsiveDialogSurface theme={theme} maxWidth={420}>
             <View style={styles.modalTitle}>
               <Text style={[styles.modalHeading, { color: theme.text }]}>폴더 이름 지정</Text>
               <Pressable onPress={() => { setFolderNameModalVisible(false); setPendingFolder(null); }}>
@@ -216,7 +233,7 @@ export function LibraryScreen({ search }: { search: string }) {
             <Pressable onPress={() => void confirmFolderName()} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
               <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>등록하기</Text>
             </Pressable>
-          </View>
+          </ResponsiveDialogSurface>
         </View>
       </Modal>
     </View>
@@ -227,13 +244,21 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   folderBar: { minHeight: 52 },
   folderChips: { paddingHorizontal: 16, paddingVertical: 6, gap: 8, alignItems: "center" },
-  chip: { minHeight: 36, maxWidth: 210, paddingHorizontal: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", borderRadius: 18 },
+  chip: { minHeight: 36, maxWidth: 230, padding: 3, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", borderRadius: 14 },
+  chipLabel: { minHeight: 28, maxWidth: 154, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", borderRadius: 10 },
   chipText: { fontSize: 13, fontWeight: "800", maxWidth: 136 },
-  chipRemove: { marginLeft: 8, width: 22, height: 22, alignItems: "center", justifyContent: "center", borderRadius: 11 },
-  sortBar: { minHeight: 42, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8, flexDirection: "row", gap: 8 },
+  chipRemove: { marginLeft: 4, marginRight: 1, width: 22, height: 22, alignItems: "center", justifyContent: "center", borderRadius: 10 },
+  addChip: { minHeight: 36, paddingHorizontal: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", borderRadius: 14 },
+  addChipText: { fontSize: 13, fontWeight: "800" },
+  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  searchBox: { width: "42%", minWidth: 120, maxWidth: 260, height: 36, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", flexDirection: "row", borderRadius: 18 },
+  searchIcon: { width: 22, fontSize: 16, lineHeight: 20, marginRight: 6, textAlign: "center" },
+  searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
+  sortScroller: { flex: 1 },
+  sortControls: { flexGrow: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
   sortPillText: { fontSize: 12, fontWeight: "800" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 18, gap: 10 },
+  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, gap: 10 },
   emptyListContent: { flexGrow: 1 },
   bookCard: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
   bookCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
@@ -247,7 +272,6 @@ const styles = StyleSheet.create({
   progressFill: { height: "100%", borderRadius: 3 },
   progressText: { width: 38, textAlign: "right", fontSize: 12, fontWeight: "900" },
   centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
-  pageDialog: { width: 320, borderWidth: 1, borderRadius: 18, padding: 18, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
   modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalHeading: { fontSize: 18, fontWeight: "700" },
   pageInput: { height: 44, borderWidth: 1, paddingHorizontal: 12, borderRadius: 12, fontSize: 16, textAlign: "center" },

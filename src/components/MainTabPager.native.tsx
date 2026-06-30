@@ -11,11 +11,12 @@ const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
 
 type MainTabPagerProps = {
   search: string;
+  onSearchChange: (search: string) => void;
   tab: TabName;
   onTabChange: (tab: TabName) => void;
 };
 
-export function MainTabPager({ search, tab, onTabChange }: MainTabPagerProps) {
+export function MainTabPager({ search, onSearchChange, tab, onTabChange }: MainTabPagerProps) {
   const pagerRef = useRef<PagerView>(null);
   const currentPageRef = useRef(MAIN_TABS.indexOf(tab));
   const selectedPage = MAIN_TABS.indexOf(tab);
@@ -41,13 +42,13 @@ export function MainTabPager({ search, tab, onTabChange }: MainTabPagerProps) {
       }}
     >
       <View key="library" style={styles.page} collapsable={false}>
-        <LibraryScreen search={search} />
+        <LibraryScreen search={search} onSearchChange={onSearchChange} />
       </View>
       <View key="history" style={styles.page} collapsable={false}>
-        <HistoryScreen search={search} />
+        <HistoryScreen search={search} onSearchChange={onSearchChange} />
       </View>
       <View key="bookmarks" style={styles.page} collapsable={false}>
-        <BookmarksScreen search={search} />
+        <BookmarksScreen search={search} onSearchChange={onSearchChange} />
       </View>
     </PagerView>
   );

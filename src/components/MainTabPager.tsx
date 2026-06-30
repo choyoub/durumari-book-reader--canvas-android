@@ -8,16 +8,17 @@ import { LibraryScreen } from "../screens/LibraryScreen";
 
 type MainTabPagerProps = {
   search: string;
+  onSearchChange: (search: string) => void;
   tab: TabName;
   onTabChange: (tab: TabName) => void;
 };
 
-export function MainTabPager({ search, tab }: MainTabPagerProps) {
+export function MainTabPager({ search, onSearchChange, tab }: MainTabPagerProps) {
   return (
     <View style={{ flex: 1 }}>
-      {tab === "library" && <LibraryScreen search={search} />}
-      {tab === "history" && <HistoryScreen search={search} />}
-      {tab === "bookmarks" && <BookmarksScreen search={search} />}
+      {tab === "library" && <LibraryScreen search={search} onSearchChange={onSearchChange} />}
+      {tab === "history" && <HistoryScreen search={search} onSearchChange={onSearchChange} />}
+      {tab === "bookmarks" && <BookmarksScreen search={search} onSearchChange={onSearchChange} />}
     </View>
   );
 }

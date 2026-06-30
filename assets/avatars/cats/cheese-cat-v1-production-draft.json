@@ -1,0 +1,274 @@
+{
+  "id": "cheese-cat-v1-production-draft",
+  "image": "cheese-cat-v1-production-draft.png",
+  "cell": {
+    "width": 96,
+    "height": 96
+  },
+  "displaySizePx": {
+    "min": 56,
+    "default": 64,
+    "max": 72
+  },
+  "actions": {
+    "sit_tail": {
+      "row": 0,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "next": null,
+      "group": "sit",
+      "view": "front",
+      "priority": "core"
+    },
+    "sit_blink": {
+      "row": 1,
+      "col": 0,
+      "frames": 4,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "sit",
+      "view": "front",
+      "priority": "core"
+    },
+    "sit_ear_twitch": {
+      "row": 2,
+      "col": 0,
+      "frames": 4,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "sit",
+      "view": "front",
+      "priority": "core"
+    },
+    "sit_look_back": {
+      "row": 3,
+      "col": 0,
+      "frames": 6,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "sit",
+      "view": "sideBack",
+      "priority": "core"
+    },
+    "sit_paw_tidy": {
+      "row": 4,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "sit",
+      "view": "front",
+      "priority": "niceToHave"
+    },
+    "lie_tail": {
+      "row": 5,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "next": null,
+      "group": "lie",
+      "view": "side",
+      "priority": "core"
+    },
+    "lie_forepaw_stretch": {
+      "row": 6,
+      "col": 0,
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "lie_tail",
+      "group": "lie",
+      "view": "side",
+      "priority": "core"
+    },
+    "lie_roll": {
+      "row": 7,
+      "col": 0,
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "lie_tail",
+      "group": "lie",
+      "view": "side",
+      "priority": "niceToHave"
+    },
+    "sleep_breathe": {
+      "row": 8,
+      "col": 0,
+      "frames": 6,
+      "fps": 4,
+      "loop": true,
+      "next": null,
+      "group": "sleep",
+      "view": "side",
+      "priority": "core"
+    },
+    "sleep_twitch": {
+      "row": 9,
+      "col": 0,
+      "frames": 4,
+      "fps": 5,
+      "loop": false,
+      "next": "sleep_breathe",
+      "group": "sleep",
+      "view": "side",
+      "priority": "niceToHave"
+    },
+    "walk_side": {
+      "row": 10,
+      "col": 0,
+      "frames": 6,
+      "fps": 9,
+      "loop": true,
+      "next": null,
+      "group": "walk",
+      "view": "side",
+      "priority": "core"
+    },
+    "walk_pause_sniff": {
+      "row": 11,
+      "col": 0,
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "walk",
+      "view": "side",
+      "priority": "core"
+    },
+    "turn_around": {
+      "row": 12,
+      "col": 0,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "walk_side",
+      "group": "walk",
+      "view": "sideBack",
+      "priority": "core"
+    },
+    "stretch_yawn": {
+      "row": 13,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "stretch",
+      "view": "side",
+      "priority": "core"
+    },
+    "groom_face": {
+      "row": 14,
+      "col": 0,
+      "frames": 6,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "groom",
+      "view": "front",
+      "priority": "core"
+    },
+    "groom_body": {
+      "row": 15,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "groom",
+      "view": "frontSide",
+      "priority": "niceToHave"
+    },
+    "play_paw_tap": {
+      "row": 16,
+      "col": 0,
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "play",
+      "view": "frontSide",
+      "priority": "niceToHave"
+    },
+    "play_tail_chase": {
+      "row": 17,
+      "col": 0,
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "play",
+      "view": "side",
+      "priority": "niceToHave"
+    },
+    "alert_touch": {
+      "row": 18,
+      "col": 0,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "alert",
+      "view": "front",
+      "priority": "core"
+    },
+    "drag_scruff_sway": {
+      "row": 19,
+      "col": 0,
+      "frames": 14,
+      "fps": 8,
+      "loop": true,
+      "next": null,
+      "group": "drag",
+      "view": "front",
+      "priority": "core"
+    },
+    "fall_loop": {
+      "row": 20,
+      "col": 0,
+      "frames": 5,
+      "fps": 8,
+      "loop": true,
+      "next": null,
+      "group": "fall",
+      "view": "front",
+      "priority": "core"
+    },
+    "land_recover": {
+      "row": 21,
+      "col": 0,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "group": "land",
+      "view": "side",
+      "priority": "core"
+    },
+    "back_sit_tail": {
+      "row": 22,
+      "col": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "next": null,
+      "group": "sit",
+      "view": "back",
+      "priority": "niceToHave"
+    }
+  },
+  "sourceCatalog": "cheese-cat-v1-action-catalog.json",
+  "notes": [
+    "Production draft generated by cropping concept sheets.",
+    "Review every frame before using in the app; concept art is not guaranteed to be perfectly aligned.",
+    "Background removal is automated and may require manual cleanup."
+  ]
+}

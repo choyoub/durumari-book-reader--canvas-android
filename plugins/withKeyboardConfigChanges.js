@@ -241,6 +241,8 @@ module.exports = function withKeyboardConfigChanges(config) {
     handledChanges.add("keyboardHidden");
     handledChanges.add("navigation");
     mainActivity.$["android:configChanges"] = [...handledChanges].join("|");
+    mainActivity.$["android:resizeableActivity"] = "true";
+    delete mainActivity.$["android:screenOrientation"];
     return androidConfig;
   });
 

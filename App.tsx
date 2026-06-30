@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Font from "expo-font";
@@ -9,6 +9,7 @@ import * as SystemUI from "expo-system-ui";
 import { AppProvider, useAppContext, TabName } from "./src/contexts/AppContext";
 import { IntroScroll } from "./src/components/IntroScroll";
 import { MainTabPager } from "./src/components/MainTabPager";
+import { ResponsiveFrame } from "./src/components/ResponsiveFrame";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { ThemedScreen } from "./src/components/ThemedScreen";
 import { ViewerScreen } from "./src/screens/ViewerScreen";
@@ -206,11 +207,11 @@ function AppContent() {
 
   useEffect(() => {
     const handleBack = () => {
-      if (activeDocument) return false;
       if (settingsOpen) {
         setSettingsOpen(false);
         return true;
       }
+      if (activeDocument) return false;
       if (tab !== "library") {
         setTab("library");
         return true;
@@ -271,75 +272,71 @@ function AppContent() {
     );
   }
 
+  if (settingsOpen) {
+    return (
+      <ThemedScreen theme={screenTheme} contentColor={screenTheme.outer} contentStyle={styles.app}>
+        <ResponsiveFrame theme={screenTheme}>
+          <SettingsModal
+            visible={settingsOpen}
+            inline
+            settings={draftSettings}
+            theme={screenTheme}
+            onChange={setDraftSettings}
+            onClose={() => setSettingsOpen(false)}
+            onConfirm={confirmSettings}
+            onReset={askResetSettings}
+            onClearFolders={askClearFolders}
+          />
+        </ResponsiveFrame>
+      </ThemedScreen>
+    );
+  }
+
   if (activeDocument) {
-    return <ViewerScreen />;
+    return (
+      <ViewerScreen
+        onOpenSettings={() => {
+          setDraftSettings(settings);
+          setSettingsOpen(true);
+        }}
+      />
+    );
   }
 
   return (
-    <ThemedScreen theme={screenTheme} contentStyle={styles.app}>
-      {settingsOpen ? (
-        <SettingsModal
-          visible={settingsOpen}
-          inline
-          settings={draftSettings}
-          theme={screenTheme}
-          onChange={setDraftSettings}
-          onClose={() => setSettingsOpen(false)}
-          onConfirm={confirmSettings}
-          onReset={askResetSettings}
-          onClearFolders={askClearFolders}
-        />
-      ) : (
+    <ThemedScreen theme={screenTheme} contentColor={screenTheme.outer} contentStyle={styles.app}>
+      <ResponsiveFrame theme={screenTheme}>
         <>
-        <View style={[styles.header, { borderColor: theme.border, backgroundColor: theme.bg }]}>
-          <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.searchIcon, { color: theme.secondary }]}>⌕</Text>
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder={
-                tab === "library"
-                  ? "현재 폴더 제목 검색"
-                  : tab === "history"
-                  ? "히스토리 제목 검색"
-                  : "책갈피 제목 검색"
-              }
-              placeholderTextColor={theme.secondary}
-              style={[styles.searchInput, { color: theme.text }]}
-            />
-          </View>
-          <Pressable style={[styles.smallButton, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => {
-            setDraftSettings(settings);
-            setSettingsOpen(true);
-          }}>
-            <Text style={[styles.smallButtonText, { color: theme.accentText }]}>⚙</Text>
-          </Pressable>
-        </View>
-
-        <View style={[styles.tabsWrap, { backgroundColor: theme.bg }]}>
-        <View style={[styles.tabs, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {MAIN_TABS.map((name) => (
-            <Pressable
-              key={name}
-              style={[
-                styles.tab,
-                tab === name && { backgroundColor: theme.accent },
-              ]}
-              onPress={() => setTab(name)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === name }}
-            >
-              <Text style={[styles.tabText, { color: tab === name ? theme.accentForeground : theme.secondary }]}>
-                {name === "library" ? "목록" : name === "history" ? "히스토리" : "책갈피"}
-              </Text>
+          <View style={[styles.tabsWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+            <View style={[styles.tabs, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              {MAIN_TABS.map((name) => (
+                <Pressable
+                  key={name}
+                  style={[
+                    styles.tab,
+                    tab === name && { backgroundColor: theme.accent },
+                  ]}
+                  onPress={() => setTab(name)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: tab === name }}
+                >
+                  <Text style={[styles.tabText, { color: tab === name ? theme.accentForeground : theme.secondary }]}>
+                    {name === "library" ? "목록" : name === "history" ? "히스토리" : "책갈피"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={[styles.smallButton, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => {
+              setDraftSettings(settings);
+              setSettingsOpen(true);
+            }}>
+              <Text style={[styles.smallButtonText, { color: theme.accentText }]}>⚙</Text>
             </Pressable>
-          ))}
-        </View>
-        </View>
+          </View>
 
-        <MainTabPager search={search} tab={tab} onTabChange={setTab} />
+          <MainTabPager search={search} onSearchChange={setSearch} tab={tab} onTabChange={setTab} />
         </>
-      )}
+      </ResponsiveFrame>
     </ThemedScreen>
   );
 }
@@ -358,15 +355,10 @@ export default function App() {
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
-  header: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 10 },
   smallButton: { width: 44, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 14 },
   smallButtonText: { fontSize: 19, fontWeight: "800" },
-  searchBox: { flex: 1, height: 46, borderWidth: 1, paddingHorizontal: 14, alignItems: "center", flexDirection: "row", borderRadius: 14 },
-  searchIcon: { width: 22, fontSize: 22, lineHeight: 24, marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 16, paddingVertical: 0 },
-  headerSpacer: { flex: 1 },
-  tabsWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  tabs: { minHeight: 44, borderWidth: 1, borderRadius: 14, flexDirection: "row", padding: 4, gap: 4 },
+  tabsWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 12 },
+  tabs: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 14, flexDirection: "row", padding: 4, gap: 4 },
   tab: { flex: 1, minHeight: 34, alignItems: "center", justifyContent: "center", borderRadius: 10 },
   tabText: { fontWeight: "800", fontSize: 14 },
 });

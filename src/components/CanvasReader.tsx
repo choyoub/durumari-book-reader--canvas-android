@@ -78,7 +78,8 @@ interface Props {
   onError?: (payload: { code: string; message: string }) => void;
 }
 
-export function CanvasReader({
+export function CanvasReader(props: Props) {
+  const {
   document,
   settings,
   initialPage,
@@ -98,7 +99,8 @@ export function CanvasReader({
   turnRequest,
   offsetRequest,
   onError,
-}: Props) {
+  } = props;
+
   const webViewRef = useRef<WebView>(null);
   const [fontAssets, fontAssetError] = useAssets(VIEWER_FONT_MODULES);
   const fontUris = useMemo(() => {

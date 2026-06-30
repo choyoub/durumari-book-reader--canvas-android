@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ReaderSettings, ThemeName } from "../types";
+import { safeNativeFontFamily, safeNativeFontWeight } from "../lib/nativeText";
 import { nativeFontFamily, READER_FONTS, themeTokens } from "../lib/settings";
+import { useResponsiveFrameMetrics } from "./ResponsiveFrame";
 import { ThemedScreen } from "./ThemedScreen";
 
 function clamp(value: number, min: number, max: number) {
@@ -269,7 +271,7 @@ export function SettingsModal({
 
   const patch = (next: Partial<ReaderSettings>) => onChange({ ...settings, ...next });
   const previewTheme = themeTokens[settings.theme];
-  const previewFont = nativeFontFamily(settings.fontFamily);
+  const previewFont = safeNativeFontFamily(nativeFontFamily(settings.fontFamily));
   const selectedFont = READER_FONTS.find((font) => font.value === settings.fontFamily) ?? READER_FONTS[0];
   const toggleLinkedPadding = () => {
     const paddingLinked = !settings.paddingLinked;
@@ -278,9 +280,12 @@ export function SettingsModal({
       paddingRight: paddingLinked ? settings.paddingLeft : settings.paddingRight,
     });
   };
+  const metrics = useResponsiveFrameMetrics({ maxFrameWidth: 780 });
+  const fontPickerWidth = Math.min(Math.max(1, metrics.windowWidth - metrics.dialogMargin * 2), 420);
   const settingsContent = (
     <View style={[styles.settingsSheet, { backgroundColor: theme.card }]}>
-            <View style={[styles.previewPane, { borderColor: theme.border }]}>
+      <View style={styles.settingsBody}>
+        <View style={[styles.previewPane, { borderColor: theme.border }]}>
               <View style={styles.modalTitle}>
                 <Text style={[styles.modalHeading, { color: theme.text }]}>설정</Text>
                 <Pressable
@@ -311,7 +316,8 @@ export function SettingsModal({
                     color: previewTheme.text,
                     fontFamily: previewFont,
                     fontSize: settings.fontSize,
-                    fontWeight: settings.isBold ? "700" : "400",
+                    fontWeight: settings.isBold ? safeNativeFontWeight("700") : safeNativeFontWeight("400"),
+                    includeFontPadding: true,
                     lineHeight: settings.fontSize * settings.lineHeight,
                     letterSpacing: settings.letterSpacing,
                   }}
@@ -320,7 +326,7 @@ export function SettingsModal({
                 </Text>
               </View>
             </View>
-            <View style={[styles.settingsPane, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+        <View style={[styles.settingsPane, { backgroundColor: theme.bg, borderColor: theme.border }]}>
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
                 <SettingSection theme={theme}>
                   <SettingTitle text="📖 읽기 설정" theme={theme} />
@@ -332,7 +338,7 @@ export function SettingsModal({
                       accessibilityRole="button"
                       accessibilityLabel="서체 선택"
                     >
-                      <Text numberOfLines={1} style={[styles.comboText, { color: theme.text, fontFamily: selectedFont.native }]}>{selectedFont.label}</Text>
+                      <Text numberOfLines={1} style={[styles.comboText, { color: theme.text, fontFamily: safeNativeFontFamily(selectedFont.native) }]}>{selectedFont.label}</Text>
                       <Text style={{ color: theme.secondary }}>{fontPickerOpen ? "▴" : "▾"}</Text>
                     </Pressable>
                   </View>
@@ -403,12 +409,13 @@ export function SettingsModal({
                   </View>
                 </SettingSection>
               </ScrollView>
-            </View>
-            <View style={[styles.footerPane, { borderColor: theme.border }]}>
-              <Pressable onPress={onConfirm} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
-                <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>확인</Text>
-              </Pressable>
-            </View>
+        </View>
+      </View>
+      <View style={[styles.footerPane, { borderColor: theme.border }]}>
+        <Pressable onPress={onConfirm} style={[styles.primaryButton, { backgroundColor: theme.accent }]}>
+          <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>확인</Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -445,7 +452,7 @@ export function SettingsModal({
             accessibilityRole="button"
             accessibilityLabel="서체 목록 닫기"
           />
-          <View style={[styles.fontPickerPanel, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <View style={[styles.fontPickerPanel, { width: fontPickerWidth, borderColor: theme.border, backgroundColor: theme.card }]}>
             <View style={styles.modalTitle}>
               <Text style={[styles.modalHeading, { color: theme.text }]}>서체 선택</Text>
               <Pressable
@@ -478,7 +485,7 @@ export function SettingsModal({
                     accessibilityRole="radio"
                     accessibilityState={{ checked: selected }}
                   >
-                    <Text style={{ color: selected ? theme.accentText : theme.text, fontFamily: font.native }}>{font.label}</Text>
+                    <Text style={{ color: selected ? theme.accentText : theme.text, fontFamily: safeNativeFontFamily(font.native) }}>{font.label}</Text>
                     <Text style={{ color: selected ? theme.accentText : theme.secondary }}>{selected ? "●" : "○"}</Text>
                   </Pressable>
                 );
@@ -494,8 +501,9 @@ export function SettingsModal({
 const styles = StyleSheet.create({
   settingsScreen: { flex: 1 },
   settingsSheet: { flex: 1 },
+  settingsBody: { flex: 1, minHeight: 0 },
   previewPane: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, borderBottomWidth: 1 },
-  settingsPane: { flex: 1, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  settingsPane: { flex: 1, minHeight: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
   settingsContent: { padding: 16, gap: 14, paddingBottom: 20 },
   footerPane: { padding: 16, borderTopWidth: 1 },
   modalTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -511,7 +519,7 @@ const styles = StyleSheet.create({
   comboText: { flex: 1, paddingRight: 8 },
   comboButton: { flex: 1, minHeight: 42, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   comboOption: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  fontPickerScreen: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 24 },
+  fontPickerScreen: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
   fontPickerPanel: { maxHeight: "72%", borderWidth: 1, borderRadius: 20, padding: 16 },
   fontPickerOptions: { paddingTop: 4 },
   stepper: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderTopWidth: StyleSheet.hairlineWidth },

@@ -1,16 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, BackHandler, DeviceEventEmitter, Modal, NativeModules, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, BackHandler, DeviceEventEmitter, Modal, NativeModules, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CanvasReader } from "../components/CanvasReader";
 import { ScrollArtwork } from "../components/IntroScroll";
-import { SettingsModal } from "../components/SettingsModal";
+import { ResponsiveBottomSheet, ResponsiveDialogSurface, ResponsiveFrame } from "../components/ResponsiveFrame";
 import { ThemedScreen } from "../components/ThemedScreen";
 import { useAppContext } from "../contexts/AppContext";
 import { BookmarkRecord, DocumentRecord, ReadingRecord } from "../types";
-import { defaultSettings, themeTokens } from "../lib/settings";
-import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, saveSettings, syncBookmarks } from "../lib/store";
+import { themeTokens } from "../lib/settings";
+import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, syncBookmarks } from "../lib/store";
 import { hydrateDocumentFromBytes } from "../lib/documentImport";
 import { readSafBytes } from "../lib/safImport";
 
@@ -39,7 +38,6 @@ async function loadViewerDocument(document: DocumentRecord, forceEncoding?: stri
 function ViewerMenuModal({
   visible, title, current, total, theme, onClose, onBookmark, onNavigate, onSettings, onExit, hasToc, onToc, onEncodingChange,
 }: any) {
-  const insets = useSafeAreaInsets();
   const dragY = useRef(new Animated.Value(0)).current;
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -89,10 +87,14 @@ function ViewerMenuModal({
   ).current;
   const ratio = total <= 1 ? 0 : (current - 1) / Math.max(1, total - 1);
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.menuBackdrop}>
-        <Animated.View style={[styles.bottomSheetStack, { transform: [{ translateY: dragY }] }]}>
-          <View style={[styles.viewerMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
+    <ResponsiveBottomSheet
+      visible={visible}
+      theme={theme}
+      onRequestClose={onClose}
+      animatedStyle={{ transform: [{ translateY: dragY }] }}
+    >
+      {(metrics) => (
+          <View style={[styles.viewerMenu, { maxHeight: metrics.bottomSheetMaxHeight, backgroundColor: theme.card, borderColor: theme.border }]}>
             <View
               style={styles.sheetDragArea}
               accessibilityRole="button"
@@ -145,20 +147,8 @@ function ViewerMenuModal({
               </Pressable>
             </View>
           </View>
-          <View style={[styles.bottomSheetSafeGap, { height: insets.bottom, backgroundColor: theme.card }]} />
-        </Animated.View>
-        <View
-          pointerEvents="none"
-          style={[
-            styles.bottomNavigationOverlay,
-            {
-              height: insets.bottom,
-              backgroundColor: theme.navigationBar,
-            },
-          ]}
-        />
-      </View>
-    </Modal>
+      )}
+    </ResponsiveBottomSheet>
   );
 }
 
@@ -167,7 +157,7 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
   if (error) {
     return (
       <View style={[styles.viewerLoading, { backgroundColor: theme.outer }]}>
-        <View style={{ alignItems: "center", padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
+        <View style={[styles.viewerErrorPanel, { backgroundColor: theme.bg, borderColor: theme.border }]}>
           <Text style={{ color: theme.accentText, fontSize: 18, marginBottom: 8, fontWeight: "700" }}>문서를 열 수 없습니다</Text>
           <Text style={{ fontSize: 14, color: theme.secondary, marginBottom: 24, textAlign: "center" }}>{error.message}</Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
@@ -206,12 +196,10 @@ function ViewerLoadingOverlay({ theme, progress, message, error, onRetry, onClos
 }
 
 function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
-  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.bottomSheetStack}>
-          <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: "80%" }]}>
+    <ResponsiveBottomSheet visible={visible} theme={theme} onRequestClose={onClose}>
+      {(metrics) => (
+          <View style={[styles.settingsSheet, { backgroundColor: theme.card, borderColor: theme.border, maxHeight: metrics.bottomSheetMaxHeight }]}>
             <View style={styles.modalTitle}>
               <Text style={[styles.modalHeading, { color: theme.text }]}>목차</Text>
               <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="목차 닫기">
@@ -230,10 +218,8 @@ function TocModal({ visible, toc, theme, onClose, onSelect }: any) {
               ))}
             </ScrollView>
           </View>
-          <View style={[styles.bottomSheetSafeGap, { height: insets.bottom, backgroundColor: theme.card }]} />
-        </View>
-      </View>
-    </Modal>
+      )}
+    </ResponsiveBottomSheet>
   );
 }
 
@@ -296,7 +282,7 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={styles.centerBackdrop}>
-        <View style={[styles.pageDialog, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <ResponsiveDialogSurface theme={theme} maxWidth={420}>
           <View style={styles.modalTitle}>
             <Text style={[styles.modalHeading, { color: theme.text }]}>페이지 이동</Text>
             <Pressable style={styles.closeButton} onPress={onClose} hitSlop={4} accessibilityRole="button" accessibilityLabel="화면 이동 닫기">
@@ -328,7 +314,7 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
             <Text style={[styles.accentButtonText, { color: theme.accentForeground }]}>이동하기</Text>
           </Pressable>
           <Text style={[styles.pageHint, { color: theme.secondary }]}>현재 p.{current}</Text>
-        </View>
+        </ResponsiveDialogSurface>
       </View>
     </Modal>
   );
@@ -336,12 +322,11 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
 
 // ----------------- Main Viewer Screen -----------------
 
-type ViewerModal = "menu" | "encoding" | "toc" | "pageNavigator" | "settings";
+type ViewerModal = "menu" | "encoding" | "toc" | "pageNavigator";
 
-export function ViewerScreen() {
+export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void }) {
   const {
     settings,
-    setSettings,
     activeDocument,
     setActiveDocument,
     activeViewerTarget,
@@ -377,11 +362,6 @@ export function ViewerScreen() {
   const [turnRequest, setTurnRequest] = useState<{ signal: number; delta: -1 | 1 }>({ signal: 0, delta: 1 });
   const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
   const [loadAttempt, setLoadAttempt] = useState(0);
-
-
-
-  // Settings Modal state
-  const [draftSettings, setDraftSettings] = useState(settings);
 
   const closeTopViewerLayer = useCallback(() => {
     if (activeModal) {
@@ -531,86 +511,86 @@ export function ViewerScreen() {
     }
   }
 
-  async function confirmSettings() {
-    setSettings(draftSettings);
-    await saveSettings(draftSettings);
-    setActiveModal(null);
-  }
-
-  function askResetSettings() {
-    Alert.alert("설정 초기화", "뷰어와 목록 설정만 기본값으로 되돌릴까요?", [
-      { text: "취소", style: "cancel" },
-      {
-        text: "초기화",
-        onPress: () => setDraftSettings(defaultSettings),
-      },
-    ]);
-  }
-
   if (!activeDocument) return null;
 
   return (
     <ThemedScreen theme={theme} contentColor={theme.outer} contentStyle={styles.readerShell}>
-        {activeDocument.text ? (
-          <CanvasReader
-            key={activeDocument.documentId}
-            document={activeDocument}
-            settings={settings}
-            initialPage={initialPage}
-            reading={activeReading}
-            bookmarks={bookmarks}
-            targetBookmarkId={activeViewerTarget?.type === "bookmark" ? activeViewerTarget.bookmarkId : null}
-            onReady={(currentPage, totalPages, offset) => {
-              viewerHasLoadedRef.current = true;
-              setViewerPage({ current: currentPage, total: totalPages, offset: offset || 0 });
-              setViewerReady(true);
-              setViewerLoading((previous) => ({
-                ...previous,
-                active: false,
-                progress: 1,
-                message: "준비 완료",
-                error: undefined,
-              }));
-            }}
-            onPageChanged={onPageChanged}
-            onBookmarkChanged={onBookmarkChanged}
-            onReadingSynced={onReadingSynced}
-            onBookmarksSynced={onBookmarksSynced}
-            onMenuRequested={() => setActiveModal("menu")}
-            onBackRequested={closeTopViewerLayer}
-            onLoadingProgress={(payload) => setViewerLoading((previous) => ({
-              ...previous,
-              active: !viewerHasLoadedRef.current,
-              progress: payload.progress,
-              message: payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`,
-              error: undefined,
-            }))}
-            onError={(payload) => {
-              setViewerReady(false);
-              setViewerLoading((prev) => ({ ...prev, active: true, error: payload }));
-            }}
-            bookmarkSignal={bookmarkSignal}
-            pageRequest={pageRequest}
-            turnRequest={turnRequest}
-            offsetRequest={offsetRequest}
-          />
-        ) : null}
-        
-        {viewerLoading.active ? (
-          <ViewerLoadingOverlay
-            theme={theme}
-            progress={viewerLoading.progress}
-            message={viewerLoading.message}
-            error={viewerLoading.error}
-            onRetry={() => {
-              viewerHasLoadedRef.current = false;
-              setViewerReady(false);
-              setViewerLoading({ active: true, progress: 0, message: "다시 불러오는 중..." });
-              setLoadAttempt((attempt) => attempt + 1);
-            }}
-            onClose={() => setActiveDocument(null)}
-          />
-        ) : null}
+      <ResponsiveFrame theme={theme} reader>
+        {(metrics) => (
+          <View style={styles.readerViewport}>
+            <View
+              style={[
+                styles.readerContent,
+                {
+                  width: metrics.contentWidth,
+                  height: metrics.contentHeight,
+                },
+              ]}
+            >
+              {activeDocument.text ? (
+                <CanvasReader
+                  key={activeDocument.documentId}
+                  document={activeDocument}
+                  settings={settings}
+                  initialPage={initialPage}
+                  reading={activeReading}
+                  bookmarks={bookmarks}
+                  targetBookmarkId={activeViewerTarget?.type === "bookmark" ? activeViewerTarget.bookmarkId : null}
+                  onReady={(currentPage, totalPages, offset) => {
+                    viewerHasLoadedRef.current = true;
+                    setViewerPage({ current: currentPage, total: totalPages, offset: offset || 0 });
+                    setViewerReady(true);
+                    setViewerLoading((previous) => ({
+                      ...previous,
+                      active: false,
+                      progress: 1,
+                      message: "준비 완료",
+                      error: undefined,
+                    }));
+                  }}
+                  onPageChanged={onPageChanged}
+                  onBookmarkChanged={onBookmarkChanged}
+                  onReadingSynced={onReadingSynced}
+                  onBookmarksSynced={onBookmarksSynced}
+                  onMenuRequested={() => setActiveModal("menu")}
+                  onBackRequested={closeTopViewerLayer}
+                  onLoadingProgress={(payload) => setViewerLoading((previous) => ({
+                    ...previous,
+                    active: !viewerHasLoadedRef.current,
+                    progress: payload.progress,
+                    message: payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`,
+                    error: undefined,
+                  }))}
+                  onError={(payload) => {
+                    setViewerReady(false);
+                    setViewerLoading((prev) => ({ ...prev, active: true, error: payload }));
+                  }}
+                  bookmarkSignal={bookmarkSignal}
+                  pageRequest={pageRequest}
+                  turnRequest={turnRequest}
+                  offsetRequest={offsetRequest}
+                />
+              ) : null}
+
+              {viewerLoading.active ? (
+                <ViewerLoadingOverlay
+                  theme={theme}
+                  progress={viewerLoading.progress}
+                  message={viewerLoading.message}
+                  error={viewerLoading.error}
+                  onRetry={() => {
+                    viewerHasLoadedRef.current = false;
+                    setViewerReady(false);
+                    setViewerLoading({ active: true, progress: 0, message: "다시 불러오는 중..." });
+                    setLoadAttempt((attempt) => attempt + 1);
+                  }}
+                  onClose={() => setActiveDocument(null)}
+                />
+              ) : null}
+            </View>
+          </View>
+        )}
+      </ResponsiveFrame>
 
         {activeModal === "menu" && (
           <ViewerMenuModal
@@ -629,8 +609,8 @@ export function ViewerScreen() {
               openViewerModal("pageNavigator");
             }}
             onSettings={() => {
-              setDraftSettings(settings);
-              openViewerModal("settings");
+              setActiveModal(null);
+              onOpenSettings();
             }}
             onExit={() => {
               setActiveModal(null);
@@ -649,7 +629,7 @@ export function ViewerScreen() {
         {activeModal === "encoding" && (
           <Modal visible transparent animationType="fade" onRequestClose={closeTopViewerLayer} statusBarTranslucent navigationBarTranslucent>
             <View style={styles.centerBackdrop}>
-              <View style={{ padding: 24, backgroundColor: theme.bg, borderColor: theme.border, borderWidth: 1, borderRadius: 12, width: 320 }}>
+              <ResponsiveDialogSurface theme={theme} maxWidth={360} style={{ backgroundColor: theme.bg }}>
                 <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16 }}>인코딩 다시 선택</Text>
                 <View style={{ gap: 8 }}>
                   {["utf8", "euc-kr", "cp949", "utf16-le", "utf16-be"].map((enc) => (
@@ -661,7 +641,7 @@ export function ViewerScreen() {
                 <Pressable style={[styles.popupButton, { borderColor: theme.border, marginTop: 16, backgroundColor: theme.outer, alignItems: "center" }]} onPress={closeTopViewerLayer}>
                   <Text style={{ color: theme.text }}>취소</Text>
                 </Pressable>
-              </View>
+              </ResponsiveDialogSurface>
             </View>
           </Modal>
         )}
@@ -697,29 +677,15 @@ export function ViewerScreen() {
           />
         )}
 
-        {activeModal === "settings" && (
-          <SettingsModal
-            visible
-            settings={draftSettings}
-            theme={theme}
-            onChange={setDraftSettings}
-            onClose={closeTopViewerLayer}
-            onConfirm={confirmSettings}
-            onReset={askResetSettings}
-            onClearFolders={() => {}} 
-          />
-        )}
     </ThemedScreen>
   );
 }
 
 const styles = StyleSheet.create({
   readerShell: { flex: 1 },
+  readerViewport: { flex: 1, alignItems: "center", justifyContent: "center" },
+  readerContent: { overflow: "hidden" },
   centerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
-  menuBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.56)", justifyContent: "flex-end" },
-  bottomSheetStack: { width: "100%" },
-  bottomSheetSafeGap: { width: "100%" },
-  bottomNavigationOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20, elevation: 20 },
   viewerMenu: { width: "100%", borderTopWidth: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 28, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.22, shadowRadius: 14 },
   sheetDragArea: { height: 40, alignItems: "center", justifyContent: "center" },
   sheetHandle: { width: 42, height: 5, borderRadius: 3 },
@@ -731,10 +697,11 @@ const styles = StyleSheet.create({
   readerMeta: { fontSize: 13, marginTop: 4 },
   progressTrack: { height: 4, borderRadius: 2, marginBottom: 24, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 2 },
-  viewerActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
-  viewerAction: { width: "31%", height: 82, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 },
+  viewerActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  viewerAction: { flexGrow: 1, flexBasis: "30%", minWidth: 96, height: 78, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 },
   viewerActionIcon: { fontSize: 23 },
   popupButton: { paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderRadius: 8 },
+  viewerErrorPanel: { width: "100%", maxWidth: 360, alignItems: "center", padding: 24, borderWidth: 1, borderRadius: 12 },
   viewerLoading: { position: "absolute", top: 0, left: 0, bottom: 0, right: 0, alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 24, paddingTop: 18, paddingBottom: 20 },
   viewerLoadingArtwork: { flex: 2, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center" },
   viewerLoadingFooter: { flex: 1, width: "76%", maxWidth: 300, alignItems: "center", justifyContent: "flex-start", paddingTop: 8 },
@@ -742,9 +709,7 @@ const styles = StyleSheet.create({
   viewerLoadingTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
   viewerLoadingFill: { height: "100%", borderRadius: 2 },
   viewerLoadingText: { minHeight: 18, marginTop: 10, fontSize: 12, fontWeight: "600", textAlign: "center" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   settingsSheet: { borderTopWidth: 1, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 14, gap: 14, paddingBottom: 32 },
-  pageDialog: { width: 320, borderWidth: 1, borderRadius: 18, padding: 18 },
   pageInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 12 },
   pageInput: { width: 100, height: 46, borderWidth: 1, borderRadius: 4, fontSize: 20, textAlign: "center", fontWeight: "700" },
   pageSliderRow: { height: 32, justifyContent: "center", marginBottom: 18 },

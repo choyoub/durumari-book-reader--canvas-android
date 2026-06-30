@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { safeNativeFontFamily, safeNativeFontWeight } from "../lib/nativeText";
 
 const HUNMINJEONGEUM =
   "나랏말싸미 듕귁에 달아 문자와로 서르 사맛디 아니할쎄 이런 젼차로 어린 백셩이 니르고져 홀 배 이셔도 마참내 제 뜨들 시러 펴디 못할 노미 하니라 내 이랄 위하야 어엿비 너겨 새로 스믈여듧 자랄 맹가노니 사람마다 해어 수비 니겨 날로 쓰메 편안케 하고져 할 따라미니라";
@@ -331,11 +332,11 @@ const styles = StyleSheet.create({
   calligraphyColumns: { flexDirection: "row-reverse", alignItems: "flex-start", justifyContent: "center" },
   calligraphyColumn: { width: 18, alignItems: "center" },
   calligraphyColumnCompact: { width: 13 },
-  calligraphyCharacter: { height: 14, opacity: 0.92, color: "#28180e", fontFamily: "MaruBuri", fontSize: 11.5, fontWeight: "700", lineHeight: 14, textAlign: "center", textShadowColor: "rgba(38,18,6,0.32)", textShadowOffset: { width: 0.3, height: 0.4 }, textShadowRadius: 0.4 },
+  calligraphyCharacter: { height: 14, opacity: 0.92, color: "#28180e", fontFamily: safeNativeFontFamily("MaruBuri"), fontSize: 11.5, fontWeight: safeNativeFontWeight("700"), lineHeight: 14, includeFontPadding: true, textAlign: "center", textShadowColor: "rgba(38,18,6,0.32)", textShadowOffset: { width: 0.3, height: 0.4 }, textShadowRadius: 0.4 },
   calligraphyCharacterCompact: { height: 11, fontSize: 8.8, lineHeight: 11 },
   seal: { position: "absolute", left: 16, bottom: 50, width: 32, height: 32, borderWidth: 2, borderColor: "#8b261d", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(139,38,29,0.045)" },
   sealCompact: { left: 10, bottom: 46, width: 24, height: 24 },
-  sealText: { color: "#8b261d", fontFamily: "MaruBuri", fontSize: 10, fontWeight: "900", lineHeight: 12, textAlign: "center" },
+  sealText: { color: "#8b261d", fontFamily: safeNativeFontFamily("MaruBuri"), fontSize: 10, fontWeight: safeNativeFontWeight("900"), lineHeight: 12, includeFontPadding: true, textAlign: "center" },
   sealTextCompact: { fontSize: 8, lineHeight: 9 },
   decorationLayer: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, alignItems: "center" },
   yuso: { position: "absolute", top: -67, height: 83, alignItems: "center" },
@@ -351,10 +352,10 @@ const styles = StyleSheet.create({
   tasselThreads: { width: 28, height: 30, marginTop: 1, position: "relative" },
   tasselThread: { position: "absolute", top: 0, width: 2, height: 27, borderRadius: 2 },
   brand: { alignItems: "center", marginBottom: 18 },
-  title: { color: "#e1c17b", fontFamily: "MaruBuri", fontSize: 25, fontWeight: "700", letterSpacing: 8, paddingLeft: 8, textShadowColor: "rgba(0,0,0,0.45)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 3 },
-  subtitle: { color: "rgba(225,193,123,0.62)", fontFamily: "MaruBuri", fontSize: 11, marginTop: 6, letterSpacing: 1.2 },
+  title: { color: "#e1c17b", fontFamily: safeNativeFontFamily("MaruBuri"), fontSize: 25, fontWeight: safeNativeFontWeight("700"), lineHeight: 34, includeFontPadding: true, letterSpacing: 8, paddingLeft: 8, textShadowColor: "rgba(0,0,0,0.45)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 3 },
+  subtitle: { color: "rgba(225,193,123,0.62)", fontFamily: safeNativeFontFamily("MaruBuri"), fontSize: 11, lineHeight: 16, includeFontPadding: true, marginTop: 6, letterSpacing: 1.2 },
   loading: { width: "76%", maxWidth: 300, alignItems: "center" },
   progressTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden", backgroundColor: "rgba(225,193,123,0.2)" },
   progressFill: { height: "100%", borderRadius: 2, backgroundColor: "#d4ad5f" },
-  status: { color: "rgba(255,255,255,0.58)", fontFamily: "NanumGothic", fontSize: 11, textAlign: "center", marginTop: 10, minHeight: 17 },
+  status: { color: "rgba(255,255,255,0.58)", fontFamily: safeNativeFontFamily("NanumGothic"), fontSize: 11, lineHeight: 16, includeFontPadding: true, textAlign: "center", marginTop: 10, minHeight: 19 },
 });

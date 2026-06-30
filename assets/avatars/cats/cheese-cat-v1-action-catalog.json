@@ -1,0 +1,330 @@
+{
+  "id": "cheese-cat-v1",
+  "character": "cheeseCat",
+  "cell": {
+    "targetWidth": 96,
+    "targetHeight": 96,
+    "displaySizePx": {
+      "min": 56,
+      "default": 64,
+      "max": 72
+    }
+  },
+  "styleSource": "assets/avatars/concepts/cheese-cat-polished-action-sheet-v2.png",
+  "notes": [
+    "This is the V1 behavior catalog for the cheese cat. Concept sheet coordinates are not final engine crop coordinates.",
+    "Final production art should be exported as transparent 96x96 cells with the same action ids.",
+    "Drag uses a visible hand holding the scruff because the hand represents the user's touch interaction."
+  ],
+  "sheets": {
+    "core": "assets/avatars/concepts/cheese-cat-polished-action-sheet-v2.png",
+    "ambient": "assets/avatars/concepts/cheese-cat-ambient-sheet-v1.png",
+    "interaction": "assets/avatars/concepts/cheese-cat-interaction-sheet-v1.png",
+    "drag": "assets/avatars/concepts/cheese-cat-drag-scruff-sheet-v1.png"
+  },
+  "actions": {
+    "sit_tail": {
+      "group": "sit",
+      "label": "앉기 - 꼬리 흔들기",
+      "sheet": "ambient",
+      "view": "front",
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "priority": "core",
+      "description": "Default quiet reader idle. Tail sways subtly while posture stays calm."
+    },
+    "sit_blink": {
+      "group": "sit",
+      "label": "앉기 - 눈 깜박임",
+      "sheet": "ambient",
+      "view": "front",
+      "frames": 4,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Short blink detail inserted during idle."
+    },
+    "sit_ear_twitch": {
+      "group": "sit",
+      "label": "앉기 - 귀 까딱",
+      "sheet": "ambient",
+      "view": "front",
+      "frames": 4,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "One ear twitches lightly without moving the body."
+    },
+    "sit_look_back": {
+      "group": "sit",
+      "label": "앉기 - 고개 돌림",
+      "sheet": "interaction",
+      "view": "sideBack",
+      "frames": 6,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Looks over shoulder, useful after page turn or touch."
+    },
+    "sit_paw_tidy": {
+      "group": "sit",
+      "label": "앉기 - 앞발 정리",
+      "sheet": "ambient",
+      "view": "front",
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "niceToHave",
+      "description": "Small front-paw tidy motion."
+    },
+    "lie_tail": {
+      "group": "lie",
+      "label": "눕기 - 꼬리 끝 까딱",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "priority": "core",
+      "description": "Quiet lying loop with tail-tip movement."
+    },
+    "lie_forepaw_stretch": {
+      "group": "lie",
+      "label": "눕기 - 앞발 뻗기",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "lie_tail",
+      "priority": "core",
+      "description": "Stretches one forepaw while staying low."
+    },
+    "lie_roll": {
+      "group": "lie",
+      "label": "눕기 - 몸 뒤척임",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "lie_tail",
+      "priority": "niceToHave",
+      "description": "Small body roll for long idle sessions."
+    },
+    "sleep_breathe": {
+      "group": "sleep",
+      "label": "자기 - 숨쉬기",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 6,
+      "fps": 4,
+      "loop": true,
+      "priority": "core",
+      "description": "Sleeping breathing loop for very long idle."
+    },
+    "sleep_twitch": {
+      "group": "sleep",
+      "label": "자기 - 귀/발 움찔",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 4,
+      "fps": 5,
+      "loop": false,
+      "next": "sleep_breathe",
+      "priority": "niceToHave",
+      "description": "Tiny ear or paw twitch while sleeping."
+    },
+    "walk_side": {
+      "group": "walk",
+      "label": "걷기 - 옆모습",
+      "sheet": "core",
+      "view": "side",
+      "frames": 6,
+      "fps": 9,
+      "loop": true,
+      "priority": "core",
+      "description": "Primary lower-lane walking loop."
+    },
+    "walk_pause_sniff": {
+      "group": "walk",
+      "label": "걷기 - 멈칫/냄새 맡기",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 5,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Stops, lowers head, sniffs the floor."
+    },
+    "turn_around": {
+      "group": "walk",
+      "label": "걷기 - 방향 전환",
+      "sheet": "interaction",
+      "view": "sideBack",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "walk_side",
+      "priority": "core",
+      "description": "Turns between left and right walking directions."
+    },
+    "stretch_yawn": {
+      "group": "stretch",
+      "label": "기지개/하품",
+      "sheet": "ambient",
+      "view": "side",
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Front paws stretch, back arches, yawn, tail raised."
+    },
+    "groom_face": {
+      "group": "groom",
+      "label": "그루밍 - 얼굴 닦기",
+      "sheet": "ambient",
+      "view": "front",
+      "frames": 6,
+      "fps": 7,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Licks paw and wipes face."
+    },
+    "groom_body": {
+      "group": "groom",
+      "label": "그루밍 - 몸/귀 정리",
+      "sheet": "ambient",
+      "view": "frontSide",
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "niceToHave",
+      "description": "Body lick and ear cleaning detail."
+    },
+    "play_paw_tap": {
+      "group": "play",
+      "label": "장난 - 바닥 톡톡",
+      "sheet": "interaction",
+      "view": "frontSide",
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "niceToHave",
+      "description": "Taps the floor with a paw."
+    },
+    "play_tail_chase": {
+      "group": "play",
+      "label": "장난 - 꼬리 사냥",
+      "sheet": "interaction",
+      "view": "side",
+      "frames": 5,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "niceToHave",
+      "description": "Short playful turn toward the tail."
+    },
+    "alert_touch": {
+      "group": "alert",
+      "label": "반응 - 터치 놀람",
+      "sheet": "interaction",
+      "view": "front",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Eyes widen and ears rise after touch."
+    },
+    "drag_scruff_sway": {
+      "group": "drag",
+      "label": "잡힘 - 목덜미 들림",
+      "sheet": "drag",
+      "view": "front",
+      "frames": 14,
+      "fps": 8,
+      "loop": true,
+      "priority": "core",
+      "description": "A hand holds the scruff from above; body hangs down and tail sways left-right."
+    },
+    "fall_loop": {
+      "group": "fall",
+      "label": "낙하",
+      "sheet": "interaction",
+      "view": "front",
+      "frames": 5,
+      "fps": 8,
+      "loop": true,
+      "priority": "core",
+      "description": "Body curls, paws spread, tail moves while falling."
+    },
+    "land_recover": {
+      "group": "land",
+      "label": "착지/회복",
+      "sheet": "interaction",
+      "view": "side",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "next": "sit_tail",
+      "priority": "core",
+      "description": "Crouch on landing, shake body, recover to sitting."
+    },
+    "back_sit_tail": {
+      "group": "sit",
+      "label": "뒷모습 - 꼬리 흔들기",
+      "sheet": "ambient",
+      "view": "back",
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "priority": "niceToHave",
+      "description": "Back-view sitting loop for variety."
+    }
+  },
+  "stateWeights": {
+    "readingQuiet": {
+      "sit_tail": 65,
+      "sit_blink": 15,
+      "sit_ear_twitch": 10,
+      "sit_look_back": 10
+    },
+    "samePage15s": {
+      "sit_tail": 35,
+      "lie_tail": 20,
+      "groom_face": 15,
+      "walk_pause_sniff": 15,
+      "stretch_yawn": 15
+    },
+    "samePage45s": {
+      "walk_side": 25,
+      "lie_tail": 20,
+      "sleep_breathe": 20,
+      "groom_body": 10,
+      "play_paw_tap": 10,
+      "play_tail_chase": 5,
+      "back_sit_tail": 10
+    },
+    "touch": {
+      "alert_touch": 100
+    },
+    "drag": {
+      "drag_scruff_sway": 100
+    },
+    "drop": {
+      "fall_loop": 60,
+      "land_recover": 40
+    }
+  }
+}

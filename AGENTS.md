@@ -2,7 +2,7 @@
 
 ## Expo SDK
 
-This project uses Expo SDK 56. Before writing or changing code, read the exact versioned docs:
+This project uses Expo SDK 56. Before working with React Native or Expo technology, read the exact versioned docs. You do not need to mention this documentation check in chat:
 
 https://docs.expo.dev/versions/v56.0.0/
 
