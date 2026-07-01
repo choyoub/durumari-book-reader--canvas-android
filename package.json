@@ -1,6 +1,6 @@
 {
-  "name": "durumari-app-v2",
-  "version": "1.0.0",
+  "name": "durumari-book-view",
+  "version": "1.2.1",
   "main": "index.ts",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -40,7 +40,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "web:test": "node scripts/start-test-web.js",
     "test": "jest",
+    "version:patch": "node scripts/bump-version.js patch",
     "build:release": "node scripts/build-apk.js release",
     "build:debug": "node scripts/build-apk.js debug",
     "build:apk": "node scripts/build-apk.js"

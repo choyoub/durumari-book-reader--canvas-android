@@ -26,10 +26,21 @@ export interface ResponsiveFrameMetrics {
   isWide: boolean;
 }
 
-export function useResponsiveFrameMetrics({ reader = false, maxFrameWidth = 760 }: { reader?: boolean; maxFrameWidth?: number } = {}): ResponsiveFrameMetrics {
+export function useResponsiveFrameMetrics({
+  reader = false,
+  maxFrameWidth = 760,
+  respectSafeArea = true,
+}: {
+  reader?: boolean;
+  maxFrameWidth?: number;
+  respectSafeArea?: boolean;
+} = {}): ResponsiveFrameMetrics {
   const { width, height } = useWindowDimensions();
-  const windowWidth = Math.max(1, width);
-  const windowHeight = Math.max(1, height);
+  const insets = useSafeAreaInsets();
+  const horizontalInsets = respectSafeArea ? insets.left + insets.right : 0;
+  const verticalInsets = respectSafeArea ? insets.top + insets.bottom : 0;
+  const windowWidth = Math.max(1, width - horizontalInsets);
+  const windowHeight = Math.max(1, height - verticalInsets);
   const isLandscape = windowWidth > windowHeight;
   const isShort = windowHeight < 520;
   const isCompact = windowWidth < 700 || isShort;
@@ -142,7 +153,7 @@ export function ResponsiveBottomSheet({
   backdropColor?: string;
 }) {
   const insets = useSafeAreaInsets();
-  const metrics = useResponsiveFrameMetrics({ maxFrameWidth: maxWidth });
+  const metrics = useResponsiveFrameMetrics({ maxFrameWidth: maxWidth, respectSafeArea: false });
   const content = typeof children === "function" ? children(metrics) : children;
   const bodyMaxHeight = Math.max(240, metrics.bottomSheetMaxHeight - insets.bottom);
 

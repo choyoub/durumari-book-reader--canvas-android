@@ -112,11 +112,11 @@ export function LibraryScreen({ search, onSearchChange }: { search: string; onSe
                 <Pressable
                   onPress={() => setActiveFolderId(folder.folderId)}
                   style={[styles.chip, {
-                    backgroundColor: theme.card,
+                    backgroundColor: isActive ? theme.accent : theme.card,
                     borderColor: isError ? "#E53935" : theme.border,
                   }]}
                 >
-                  <View style={[styles.chipLabel, isActive && { backgroundColor: theme.accent }]}>
+                  <View style={styles.chipLabel}>
                     <Text numberOfLines={1} style={[styles.chipText, { color: isError ? "#E53935" : isActive ? theme.accentForeground : theme.secondary }]}>
                       {isError ? "⚠️ " : ""}{folder.displayName}
                     </Text>
@@ -149,17 +149,17 @@ export function LibraryScreen({ search, onSearchChange }: { search: string; onSe
             style={[styles.searchInput, { color: theme.text }]}
           />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroller} contentContainerStyle={styles.sortControls}>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "title" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "title")}>
-            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "title" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
+        <View style={[styles.sortGroup, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentFirst, settings.librarySort.column === "title" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("library", "title")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.librarySort.column === "title" ? theme.accentForeground : theme.secondary }]}>제목{sortIndicator(settings.librarySort, "title")}</Text>
           </Pressable>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "modifiedAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "modifiedAt")}>
-            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentText : theme.secondary }]}>파일 일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentMiddle, { borderLeftColor: theme.border }, settings.librarySort.column === "modifiedAt" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("library", "modifiedAt")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.librarySort.column === "modifiedAt" ? theme.accentForeground : theme.secondary }]}>일자{sortIndicator(settings.librarySort, "modifiedAt")}</Text>
           </Pressable>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.librarySort.column === "status" ? theme.card : "transparent" }]} onPress={() => void updateSort("library", "status")}>
-            <Text style={[styles.sortPillText, { color: settings.librarySort.column === "status" ? theme.accentText : theme.secondary }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentLast, { borderLeftColor: theme.border }, settings.librarySort.column === "status" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("library", "status")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.librarySort.column === "status" ? theme.accentForeground : theme.secondary }]}>상태{sortIndicator(settings.librarySort, "status")}</Text>
           </Pressable>
-        </ScrollView>
+        </View>
       </View>
 
       <FlatList
@@ -250,14 +250,16 @@ const styles = StyleSheet.create({
   chipRemove: { marginLeft: 4, marginRight: 1, width: 22, height: 22, alignItems: "center", justifyContent: "center", borderRadius: 10 },
   addChip: { minHeight: 36, paddingHorizontal: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", borderRadius: 14 },
   addChipText: { fontSize: 13, fontWeight: "800" },
-  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  searchBox: { width: "42%", minWidth: 120, maxWidth: 260, height: 36, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", flexDirection: "row", borderRadius: 18 },
+  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { flex: 1, minWidth: 0, height: 36, borderWidth: 1, paddingHorizontal: 10, alignItems: "center", flexDirection: "row", borderRadius: 18 },
   searchIcon: { width: 22, fontSize: 16, lineHeight: 20, marginRight: 6, textAlign: "center" },
   searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
-  sortScroller: { flex: 1 },
-  sortControls: { flexGrow: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
-  sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
-  sortPillText: { fontSize: 12, fontWeight: "800" },
+  sortGroup: { width: 164, height: 36, flexShrink: 0, borderWidth: 1, borderRadius: 18, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
+  sortSegment: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center" },
+  sortSegmentFirst: { borderTopLeftRadius: 17, borderBottomLeftRadius: 17 },
+  sortSegmentMiddle: { borderLeftWidth: StyleSheet.hairlineWidth },
+  sortSegmentLast: { borderLeftWidth: StyleSheet.hairlineWidth, borderTopRightRadius: 17, borderBottomRightRadius: 17 },
+  sortSegmentText: { fontSize: 11, fontWeight: "900" },
   listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, gap: 10 },
   emptyListContent: { flexGrow: 1 },
   bookCard: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },

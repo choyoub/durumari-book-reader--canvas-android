@@ -1,22 +1,25 @@
 const { copyFileSync, mkdirSync } = require("node:fs");
 const { join } = require("node:path");
 const { spawnSync } = require("node:child_process");
+const packageJson = require("../package.json");
 
 const projectRoot = join(__dirname, "..");
 const androidRoot = join(projectRoot, "android");
+const appVersion = packageJson.version;
+const apkBaseName = "durumari-book-view";
 
 const variants = {
   release: {
     task: "assembleRelease",
     source: join(androidRoot, "app", "build", "outputs", "apk", "release", "app-release.apk"),
     targetDir: join(projectRoot, "apk", "release"),
-    target: join(projectRoot, "apk", "release", "durumari-v2-app-release.apk"),
+    target: join(projectRoot, "apk", "release", `${apkBaseName}-v${appVersion}-release.apk`),
   },
   debug: {
     task: "assembleDebug",
     source: join(androidRoot, "app", "build", "outputs", "apk", "debug", "app-debug.apk"),
     targetDir: join(projectRoot, "apk", "debug"),
-    target: join(projectRoot, "apk", "debug", "durumari-v2-app-debug.apk"),
+    target: join(projectRoot, "apk", "debug", `${apkBaseName}-v${appVersion}-debug.apk`),
   },
 };
 

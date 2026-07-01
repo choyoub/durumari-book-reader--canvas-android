@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from "react";
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppContext } from "../contexts/AppContext";
 import { EmptyState } from "../components/EmptyState";
 import { themeTokens } from "../lib/settings";
@@ -70,17 +70,17 @@ export function BookmarksScreen({ search, onSearchChange }: { search: string; on
             style={[styles.searchInput, { color: theme.text }]}
           />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroller} contentContainerStyle={styles.sortControls}>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "bookTitle" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
-            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentText : theme.secondary }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
+        <View style={[styles.sortGroup, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentFirst, settings.bookmarksSort.column === "bookTitle" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("bookmarks", "bookTitle")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.bookmarksSort.column === "bookTitle" ? theme.accentForeground : theme.secondary }]}>제목{sortIndicator(settings.bookmarksSort, "bookTitle")}</Text>
           </Pressable>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "createdAt" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
-            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentText : theme.secondary }]}>추가 일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentMiddle, { borderLeftColor: theme.border }, settings.bookmarksSort.column === "createdAt" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("bookmarks", "createdAt")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.bookmarksSort.column === "createdAt" ? theme.accentForeground : theme.secondary }]}>일자{sortIndicator(settings.bookmarksSort, "createdAt")}</Text>
           </Pressable>
-          <Pressable style={[styles.sortPill, { borderColor: theme.border, backgroundColor: settings.bookmarksSort.column === "page" ? theme.card : "transparent" }]} onPress={() => void updateSort("bookmarks", "page")}>
-            <Text style={[styles.sortPillText, { color: settings.bookmarksSort.column === "page" ? theme.accentText : theme.secondary }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
+          <Pressable style={[styles.sortSegment, styles.sortSegmentLast, { borderLeftColor: theme.border }, settings.bookmarksSort.column === "page" && { backgroundColor: theme.accent }]} onPress={() => void updateSort("bookmarks", "page")}>
+            <Text numberOfLines={1} style={[styles.sortSegmentText, { color: settings.bookmarksSort.column === "page" ? theme.accentForeground : theme.secondary }]}>위치{sortIndicator(settings.bookmarksSort, "page")}</Text>
           </Pressable>
-        </ScrollView>
+        </View>
       </View>
       <FlatList
         data={bookmarkRows}
@@ -114,14 +114,16 @@ export function BookmarksScreen({ search, onSearchChange }: { search: string; on
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  searchBox: { width: "42%", minWidth: 120, maxWidth: 260, height: 36, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", flexDirection: "row", borderRadius: 18 },
+  sortBar: { minHeight: 52, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { flex: 1, minWidth: 0, height: 36, borderWidth: 1, paddingHorizontal: 10, alignItems: "center", flexDirection: "row", borderRadius: 18 },
   searchIcon: { width: 22, fontSize: 16, lineHeight: 20, marginRight: 6, textAlign: "center" },
   searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
-  sortScroller: { flex: 1 },
-  sortControls: { flexGrow: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
-  sortPill: { minHeight: 32, paddingHorizontal: 12, borderWidth: 1, borderRadius: 16, justifyContent: "center" },
-  sortPillText: { fontSize: 12, fontWeight: "800" },
+  sortGroup: { width: 164, height: 36, flexShrink: 0, borderWidth: 1, borderRadius: 18, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
+  sortSegment: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center" },
+  sortSegmentFirst: { borderTopLeftRadius: 17, borderBottomLeftRadius: 17 },
+  sortSegmentMiddle: { borderLeftWidth: StyleSheet.hairlineWidth },
+  sortSegmentLast: { borderLeftWidth: StyleSheet.hairlineWidth, borderTopRightRadius: 17, borderBottomRightRadius: 17 },
+  sortSegmentText: { fontSize: 11, fontWeight: "900" },
   listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, gap: 10 },
   emptyListContent: { flexGrow: 1 },
   card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },

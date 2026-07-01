@@ -1,6 +1,6 @@
-# 두루마리 v2
+# 두루마리 뷰어
 
-두루마리 v2는 긴 한글 텍스트 문서를 모바일에서 편하게 읽기 위한 Expo 기반 전자책/문서 뷰어입니다. Android에서는 SAF(Storage Access Framework)로 폴더를 연결하고, 문서 목록과 읽기 상태를 로컬 SQLite에 저장합니다.
+두루마리 뷰어는 긴 한글 텍스트 문서를 모바일에서 편하게 읽기 위한 Expo 기반 전자책/문서 뷰어입니다. Android에서는 SAF(Storage Access Framework)로 폴더를 연결하고, 문서 목록과 읽기 상태를 로컬 SQLite에 저장합니다.
 
 ## 주요 기능
 
@@ -65,6 +65,14 @@ npm run android
 npm run web
 ```
 
+웹 테스트 모드로 실행하면 `G:\내 드라이브\소설`을 스캔하는 로컬 테스트 파일 서버가 함께 실행되고, 지원 문서가 `테스트 소설` 폴더로 자동 등록됩니다.
+
+```bash
+npm run web:test
+```
+
+다른 폴더를 쓰려면 실행 전에 `TEST_NOVELS_DIR` 환경 변수를 지정합니다. 브라우저 제한 때문에 앱은 로컬 드라이브를 직접 읽지 않고 `npm run web:test`가 띄운 로컬 서버를 통해 필요한 문서만 읽습니다.
+
 ## 테스트
 
 ```bash
@@ -73,10 +81,24 @@ npm test
 
 ## APK 빌드
 
-릴리스 APK를 생성하고 루트 경로의 `durumari-app-release.apk`로 복사합니다.
+릴리스 배포 전에는 patch 버전(마지막 자리)을 1씩 증가시킵니다.
+
+```bash
+npm run version:patch
+```
+
+이 명령은 `app.json`, `package.json`, `package-lock.json`, `android/app/build.gradle`의 앱 버전을 함께 갱신합니다.
+
+릴리스 APK를 생성하고 `apk/release` 경로에 버전이 포함된 파일명으로 복사합니다.
 
 ```bash
 npm run build:apk
+```
+
+현재 파일명 형식은 다음과 같습니다.
+
+```text
+apk/release/durumari-book-view-v1.2.1-release.apk
 ```
 
 빌드 결과 원본 경로는 다음과 같습니다.

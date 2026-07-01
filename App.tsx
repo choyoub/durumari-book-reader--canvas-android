@@ -16,6 +16,7 @@ import { ViewerScreen } from "./src/screens/ViewerScreen";
 import { defaultSettings, resolveActiveFolderId, themeTokens } from "./src/lib/settings";
 import { subscribeForegroundRescan } from "./src/lib/safImport";
 import { clearFolders, initStore, listFolders, loadSettings, saveSettings } from "./src/lib/store";
+import { seedWebTestLibrary } from "./src/lib/testMode";
 
 const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
 const BACKGROUND_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
@@ -140,6 +141,9 @@ function AppContent() {
         }),
         initStore(),
       ]);
+      setLoadingProgress(0.45);
+      setLoadingText("테스트 문서를 확인하는 중...");
+      await seedWebTestLibrary();
       setLoadingProgress(0.5);
       const saved = await loadSettings();
       if (!mounted) return;

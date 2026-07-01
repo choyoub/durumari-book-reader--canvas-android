@@ -61,7 +61,8 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     let prewarmTimer = null;
     let viewportCache = { width: 1, height: 1, dpr: 1 };
     const pageSurfaces = new Map();
-    const FOOTER_HEIGHT = 44;
+    const PAGE_NUMBER_FONT_SIZE = 15;
+    const PAGE_NUMBER_BOTTOM_OFFSET = 24;
     const TURN_DURATION = 380;
     const BOUNDARY_DURATION = 180;
     const MAX_RENDER_DPR = 2;
@@ -80,7 +81,12 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
     };
 
     function post(type, payload, requestId) {
-      window.ReactNativeWebView?.postMessage(JSON.stringify({ version:1, type, requestId: requestId || null, payload }));
+      const message = JSON.stringify({ version:1, type, requestId: requestId || null, payload });
+      if (window.ReactNativeWebView?.postMessage) {
+        window.ReactNativeWebView.postMessage(message);
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, "*");
+      }
     }
 
     function textFontSpec() {
@@ -123,7 +129,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
         if (!(await waitForRenderPrerequisites(runId))) return;
         updateViewportCache();
         const width = Math.max(160, viewportWidth() - settings.paddingLeft - settings.paddingRight);
-        const height = Math.max(160, viewportHeight() - settings.paddingTop - settings.paddingBottom - FOOTER_HEIGHT);
+        const height = Math.max(160, contentBottomY(viewportHeight()) - settings.paddingTop - settings.paddingBottom);
         const maxLines = Math.max(1, Math.floor(height / Math.max(1, settings.fontSize * settings.lineHeight)));
         const nextStarts = [0];
         let line = 0;
@@ -215,6 +221,14 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
 
     function viewportHeight() {
       return viewportCache.height;
+    }
+
+    function pageNumberTopY(height) {
+      return height - PAGE_NUMBER_BOTTOM_OFFSET - PAGE_NUMBER_FONT_SIZE / 2;
+    }
+
+    function contentBottomY(height) {
+      return pageNumberTopY(height);
     }
 
     function previewText() {
@@ -472,7 +486,7 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       const text = documentData.text || "";
       const lines = pageLineRanges(pageNum, contentWidth);
       let y = settings.paddingTop;
-      const maxY = height - settings.paddingBottom - FOOTER_HEIGHT;
+      const maxY = contentBottomY(height) - settings.paddingBottom;
       for (const [start, end] of lines) {
         if (y + settings.fontSize > maxY) break;
         drawTextRun(target, text.slice(start, end), settings.paddingLeft, y);
@@ -481,10 +495,10 @@ export function createCanvasHtml(payload: CanvasDocumentPayload) {
       target.save();
       target.globalAlpha = settings.theme === "dark" ? 0.28 : 0.24;
       target.fillStyle = theme.text;
-      target.font = "400 15px " + settings.fontFamily;
+      target.font = "400 " + PAGE_NUMBER_FONT_SIZE + "px " + settings.fontFamily;
       target.textAlign = "center";
       target.textBaseline = "middle";
-      target.fillText(pageNum + " / " + totalPages(), width / 2, height - 24);
+      target.fillText(pageNum + " / " + totalPages(), width / 2, height - PAGE_NUMBER_BOTTOM_OFFSET);
       target.restore();
       drawBookmarkCornerMarker(pageNum, target, width, height, theme);
     }

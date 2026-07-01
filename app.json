@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "두루마리 v2",
-    "slug": "durumari-app-v2",
-    "version": "1.0.0",
+    "name": "두루마리 뷰어",
+    "slug": "durumari-book-view",
+    "version": "1.2.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

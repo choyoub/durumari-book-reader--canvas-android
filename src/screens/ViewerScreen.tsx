@@ -12,6 +12,7 @@ import { themeTokens } from "../lib/settings";
 import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, syncBookmarks } from "../lib/store";
 import { hydrateDocumentFromBytes } from "../lib/documentImport";
 import { readSafBytes } from "../lib/safImport";
+import { readWebTestDocumentBytes } from "../lib/testMode";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -27,7 +28,7 @@ async function loadViewerDocument(document: DocumentRecord, forceEncoding?: stri
     if (stored.text !== undefined) return { ...document, ...stored };
   }
 
-  const bytes = await readSafBytes(document.sourceUri);
+  const bytes = await readWebTestDocumentBytes(document.sourceUri) ?? await readSafBytes(document.sourceUri);
   const hydrated = await hydrateDocumentFromBytes(document, bytes, forceEncoding);
   await upsertDocuments([hydrated]);
   return hydrated;
