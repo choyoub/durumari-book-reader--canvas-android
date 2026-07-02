@@ -14,12 +14,15 @@ import { SettingsModal } from "./src/components/SettingsModal";
 import { ThemedScreen } from "./src/components/ThemedScreen";
 import { ViewerScreen } from "./src/screens/ViewerScreen";
 import { defaultSettings, resolveActiveFolderId, themeTokens } from "./src/lib/settings";
+import { configureNativeTextDefaults } from "./src/lib/nativeText";
 import { subscribeForegroundRescan } from "./src/lib/safImport";
 import { clearFolders, initStore, listFolders, loadSettings, saveSettings } from "./src/lib/store";
 import { seedWebTestLibrary } from "./src/lib/testMode";
 
 const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
 const BACKGROUND_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+
+configureNativeTextDefaults();
 
 // Global Error Handler to catch startup crashes
 if (typeof global !== "undefined" && (global as any).ErrorUtils) {
@@ -276,7 +279,7 @@ function AppContent() {
     );
   }
 
-  if (settingsOpen) {
+  if (settingsOpen && !activeDocument) {
     return (
       <ThemedScreen theme={screenTheme} contentColor={screenTheme.outer} contentStyle={styles.app}>
         <ResponsiveFrame theme={screenTheme}>
@@ -298,12 +301,24 @@ function AppContent() {
 
   if (activeDocument) {
     return (
-      <ViewerScreen
-        onOpenSettings={() => {
-          setDraftSettings(settings);
-          setSettingsOpen(true);
-        }}
-      />
+      <>
+        <ViewerScreen
+          onOpenSettings={() => {
+            setDraftSettings(settings);
+            setSettingsOpen(true);
+          }}
+        />
+        <SettingsModal
+          visible={settingsOpen}
+          settings={draftSettings}
+          theme={screenTheme}
+          onChange={setDraftSettings}
+          onClose={() => setSettingsOpen(false)}
+          onConfirm={confirmSettings}
+          onReset={askResetSettings}
+          onClearFolders={askClearFolders}
+        />
+      </>
     );
   }
 
