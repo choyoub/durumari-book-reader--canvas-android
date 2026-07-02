@@ -814,7 +814,96 @@ function visualSettingsChanged(previous, next) {
 - 목록 정렬, 완료 숨김, 활성 폴더 변경은 뷰어가 아닌 목록 화면에만 영향을 주므로 뷰어 로딩과 무관합니다.
 - 설정 취소는 어떤 경우에도 WebView 메시지나 저장소 쓰기를 발생시키지 않는 것이 원칙입니다.
 
-테마는 `themeTokens`에서 화면 배경, 카드, 텍스트, accent, 상태 색상, system bar 색상을 제공합니다.
+테마는 `themeTokens`에서 화면 배경, 카드, 텍스트, accent, 상태 색상, system bar 색상을 제공합니다. 테마 색상값은 `src/lib/settings.ts`의 `themeTokens`를 기준으로 하며, WebView Canvas 본문 렌더링 색은 `src/viewer/canvasHtml.ts`의 `themes`와 같은 값으로 맞춥니다.
+
+### 15.3 테마별 색상표
+
+테마 이름:
+
+| 내부 값 | 화면 표시명 | 기본 여부 | 용도 |
+| --- | --- | --- | --- |
+| `paper` | 한지 | 기본값 | 장문 독서 기본 테마 |
+| `light` | 화이트 | 아니오 | 밝은 배경의 일반 테마 |
+| `dark` | 다크 | 아니오 | 어두운 환경용 테마 |
+| `chalk` | 칠판 | 아니오 | 저채도 녹색 배경의 독서 테마 |
+
+화면 표면과 시스템 바:
+
+| 토큰 | 적용 지점 | `paper` 한지 | `light` 화이트 | `dark` 다크 | `chalk` 칠판 |
+| --- | --- | --- | --- | --- | --- |
+| `bg` | 기본 앱 본문 배경, 목록/설정 내부 배경, 뷰어 페이지 배경 | `#f2ead3` | `#f8f4ed` | `#121212` | `#183b32` |
+| `outer` | `ResponsiveFrame` 외곽, 뷰어 shell 배경, 테마 미리보기 외곽 | `#cfbe90` | `#e2dbcc` | `#090909` | `#0d241f` |
+| `card` | 카드, 시트, 설정 섹션, 입력/선택 컨테이너 배경 | `#eae0c4` | `#FFFFFF` | `#1e1e1e` | `#21483e` |
+| `statusBar` | `ThemedScreen` 상단 safe area 상태바 영역 배경 | `#cfbe90` | `#e2dbcc` | `#090909` | `#0d241f` |
+| `navigationBar` | `ThemedScreen` 하단 safe area, Android navigation bar, `SystemUI` 배경 stack | `#cfbe90` | `#e2dbcc` | `#090909` | `#0d241f` |
+| `statusBarStyle` | Expo `StatusBar` 아이콘/텍스트 스타일 | `dark` | `dark` | `light` | `light` |
+| `navigationBarStyle` | Expo `NavigationBar` 버튼 스타일, native `SystemBarModule`의 dark button 여부 | `dark` | `dark` | `light` | `light` |
+
+텍스트, 선, 강조 색:
+
+| 토큰 | 적용 지점 | `paper` 한지 | `light` 화이트 | `dark` 다크 | `chalk` 칠판 |
+| --- | --- | --- | --- | --- | --- |
+| `text` | 기본 텍스트, 제목, 본문 UI 텍스트 | `#2a2a2a` | `#1a1a2e` | `#e0e0e0` | `#f1ead0` |
+| `secondary` | 보조 텍스트, 메타 정보, placeholder, 비활성 선택지 | `#2a2a2a80` | `#1a1a2e80` | `#e0e0e080` | `#f1ead094` |
+| `border` | 카드/검색창/구분선/진행 트랙/시트 handle | `#d5c5a0` | `#e0d8c8` | `#2d2d2d` | `#3b665b` |
+| `accent` | 선택된 탭/세그먼트 배경, 주요 버튼 배경, 진행 막대, 체크박스 채움 | `#9a5a10` | `#2563eb` | `#8ab4f8` | `#f3c969` |
+| `accentText` | 강조 텍스트, 링크형 버튼, 배지 텍스트, 설정 섹션 제목 | `#9a5a10` | `#2563eb` | `#8ab4f8` | `#f3c969` |
+| `accentForeground` | `accent` 배경 위의 텍스트/아이콘, 선택 상태 체크 표시 | `#FFFFFF` | `#FFFFFF` | `#121212` | `#183b32` |
+| `danger` | 위험 버튼/경고 테두리/삭제 텍스트 | `#B3342D` | `#B3261E` | `#FFB4AB` | `#F1A6A6` |
+
+읽기 상태 의미 색상:
+
+| 토큰 | 적용 지점 | `paper` 한지 | `light` 화이트 | `dark` 다크 | `chalk` 칠판 |
+| --- | --- | --- | --- | --- | --- |
+| `unread` | `미독` 상태 레이블, 미독 보조 상태색 | `#2a2a2a80` | `#1a1a2e80` | `#e0e0e080` | `#f1ead094` |
+| `reading` | `읽는 중` 상태 레이블, 진행 중 의미색 | `#9a5a10` | `#2563eb` | `#8ab4f8` | `#f3c969` |
+| `completed` | `완독` 상태 레이블, 완료 의미색 | `#476B3C` | `#217A3C` | `#72C48A` | `#B7D7A8` |
+
+WebView Canvas 뷰어 전용 팔레트:
+
+| Canvas 토큰 | 적용 지점 | `paper` 한지 | `light` 화이트 | `dark` 다크 | `chalk` 칠판 |
+| --- | --- | --- | --- | --- | --- |
+| `bg` | `html/body`, `canvas`, 페이지 표면, 책장 넘김 중 빈 면 | `#f2ead3` | `#f8f4ed` | `#121212` | `#183b32` |
+| `text` | Canvas 본문 텍스트, 페이지 번호 | `#2a2a2a` | `#1a1a2e` | `#e0e0e0` | `#f1ead0` |
+| `accent` | 책갈피 접힘 표시의 강조 선 | `#9a5a10` | `#2563eb` | `#8ab4f8` | `#f3c969` |
+| `dog` | 책갈피 접힘 면, 접힌 모서리 채움 | `#cfbe90` | `#e2dbcc` | `#090909` | `#0d241f` |
+| `crease` | 책갈피 접힘선, 페이지 경계선 | `#d5c5a0` | `#e0d8c8` | `#2d2d2d` | `#3b665b` |
+
+Canvas 토큰 가공 규칙:
+
+| 항목 | 규칙 | 적용 지점 |
+| --- | --- | --- |
+| 책갈피 접힘선 | 다크 테마만 `crease`에 alpha `0.86` 적용, 나머지는 원색 사용 | 책갈피가 있는 페이지 우상단 접힘선 |
+| 책갈피 강조선 | 다크/칠판은 `accent` alpha `0.62`, 한지/화이트는 `accent` alpha `0.72` 적용 | 책갈피 접힘 안쪽 사선 |
+
+Canvas 뷰어 고정 색상:
+
+| 항목 | 값 | 적용 지점 |
+| --- | --- | --- |
+| Canvas 초기 CSS 배경 | `#f2ead3` | WebView 로딩 직후 테마 스크립트가 적용되기 전의 `html/body`, `canvas` 기본 배경 |
+| 토스트 텍스트 | `#fff` | 페이지 경계 토스트 텍스트 |
+| 토스트 배경 | `rgba(0,0,0,.68)` | 페이지 경계 토스트 배경 |
+| 책갈피 drop shadow | `rgba(0,0,0,.24)` | dog-ear canvas 그림자 |
+| 슬라이드 그림자 | `rgba(0,0,0,0)`부터 `rgba(0,0,0,0.28 * strength)` | 슬라이드 페이지 전환 경계 그림자 |
+| 책장 넘김 접힘 그림자 | `rgba(0,0,0,0.38 * strength)`부터 `rgba(0,0,0,0)` | 책장 넘김 페이지 접힘 외곽 그림자 |
+| 책장 넘김 spine 그림자 | `rgba(0,0,0,0.24 * strength)`부터 `rgba(0,0,0,0)` | 책장 넘김 왼쪽 spine 그림자 |
+| 책장 넘김 sheet 음영 | `rgba(0,0,0,shade)`, `shade = sin(pi * progress) * (0.08 + 0.24 * (1 - abs(cos(angle))))` | 책장 넘김 중 휘어진 페이지 조각의 입체 음영 |
+
+테마 밖의 고정 시스템/오버레이 색상:
+
+| 항목 | 값 | 적용 지점 |
+| --- | --- | --- |
+| 부팅/인트로 시스템 배경 | `#0D1B2A` | 앱 초기화 중 `SafeAreaView`, `SystemUI.setBackgroundColorAsync`, 일반 `ThemedScreen` 진입 전 시스템 배경 |
+| 부팅/인트로 system bar 스타일 | `light` | 앱 초기화 중 `StatusBar`, `NavigationBar` 스타일 |
+| 렌더링 오류 제목 | `#E53935` | 최상위 에러 화면 제목 |
+| 렌더링 오류 본문 | `#FFF` | 최상위 에러 화면 본문 |
+| 렌더링 오류 상세 | `rgba(255,255,255,0.5)` | 최상위 에러 화면 상세 메시지 |
+| 기본 바텀시트 backdrop | `rgba(0,0,0,0.56)` | `ResponsiveBottomSheet` 기본 dim 배경 |
+| 중앙 다이얼로그 backdrop | `rgba(0,0,0,0.6)` | 폴더 표시명 입력 등 중앙 모달 배경 |
+| 폰트 선택 overlay | `rgba(0,0,0,0.45)` | 설정 모달 내부 폰트 선택 화면 배경 |
+| 활성 폴더 제거 버튼 overlay | `rgba(255,255,255,0.24)` | 선택된 폴더 chip의 제거 버튼 배경 |
+| 비활성 폴더 제거 버튼 overlay | `rgba(0,0,0,0.06)` | 선택되지 않은 폴더 chip의 제거 버튼 배경 |
+| 폴더 권한 오류 표시 | `#E53935` | 접근 권한 오류 폴더 chip 테두리와 텍스트 |
 
 시스템 UI:
 
@@ -824,7 +913,7 @@ function visualSettingsChanged(previous, next) {
 - `ThemedScreen`은 status bar 영역, 앱 영역, navigation bar 영역을 분리해서 각 테마 색을 적용합니다.
 - 모달/뷰어처럼 화면이 중첩될 수 있으므로 system background는 stack 방식으로 관리합니다. 가장 위에 있는 `ThemedScreen`의 navigation bar 색을 적용하고, 화면이 unmount되면 이전 색으로 복원합니다.
 
-### 15.3 상태바/네비게이션바 영역 처리
+### 15.4 상태바/네비게이션바 영역 처리
 
 앱은 시스템 상태바와 Android 하단 네비게이션바를 본문 레이아웃 안에 섞지 않고, `ThemedScreen`에서 명시적인 3단 구조로 처리합니다.
 
