@@ -11,8 +11,14 @@ import type {
 import { defaultSettings } from "./settings";
 
 const SETTINGS_KEY = "durumari.settings";
+const LAST_VIEWER_SESSION_KEY = "durumari.lastViewerSession";
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
+
+export interface LastViewerSession {
+  documentId: string;
+  updatedAt: number;
+}
 
 function db() {
   dbPromise ??= SQLite.openDatabaseAsync("durumari.db");
@@ -107,6 +113,32 @@ export async function loadSettings(): Promise<ReaderSettings> {
 
 export async function saveSettings(settings: ReaderSettings) {
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+export async function loadLastViewerSession(): Promise<LastViewerSession | null> {
+  const value = await AsyncStorage.getItem(LAST_VIEWER_SESSION_KEY);
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<LastViewerSession>;
+    if (!parsed.documentId) return null;
+    return {
+      documentId: parsed.documentId,
+      updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastViewerSession(documentId: string) {
+  await AsyncStorage.setItem(LAST_VIEWER_SESSION_KEY, JSON.stringify({
+    documentId,
+    updatedAt: Date.now(),
+  }));
+}
+
+export async function clearLastViewerSession() {
+  await AsyncStorage.removeItem(LAST_VIEWER_SESSION_KEY);
 }
 
 export async function resetSettings() {
@@ -443,6 +475,12 @@ export async function removeFolder(folderId: string) {
     await transaction.runAsync("DELETE FROM documents WHERE folderId = ?", folderId);
     await transaction.runAsync("DELETE FROM folders WHERE folderId = ?", folderId);
   });
+  const session = await loadLastViewerSession();
+  if (!session) return;
+  const documents = await listDocuments();
+  if (!documents.some((document) => document.documentId === session.documentId)) {
+    await clearLastViewerSession();
+  }
 }
 
 export async function clearFolders() {
@@ -452,4 +490,5 @@ export async function clearFolders() {
     await transaction.runAsync("DELETE FROM documents");
     await transaction.runAsync("DELETE FROM folders");
   });
+  await clearLastViewerSession();
 }

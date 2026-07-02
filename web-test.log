@@ -1,0 +1,306 @@
+
+> durumari-book-view@1.2.3 web:test
+> node scripts/start-test-web.js
+
+[web:test] 소설 폴더: G:\내 드라이브\소설
+[web:test] 테스트 파일 서버: http://localhost:8787
+Starting project at C:\workspace\durumari-app-v2
+Starting Metro Bundler
+
+Waiting on http://localhost:8081
+An update for expo is available: 56.0.12 → ~56.0.13
+1 other package may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+Web Bundled 4949ms index.ts (495 modules)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 487ms node_modules\expo-sqlite\web\worker.ts (16 modules)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 15ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 33ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 20ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 4ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 16ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 3ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 18ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 3ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 21ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 5ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web Bundled 15ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 5ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Unable to resolve "../components/ViewerLoadingOverlay" from "src\screens\ViewerScreen.tsx"
+[0m [90m  7 |[39m [36mimport[39m { [33mThemedScreen[39m } [36mfrom[39m [32m"../components/ThemedScreen"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { [33mViewerBottomSheet[39m } [36mfrom[39m [32m"../components/ViewerBottomSheet"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mViewerLoadingOverlay[39m } [36mfrom[39m [32m"../components/ViewerLoadingOverlay"[39m[33m;[39m
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { useAppContext } [36mfrom[39m [32m"../contexts/AppContext"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mBookmarkRecord[39m[33m,[39m [33mReadingRecord[39m } [36mfrom[39m [32m"../types"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { themeTokens } [36mfrom[39m [32m"../lib/settings"[39m[33m;[39m[0m
+
+Import stack:
+
+ src\screens\ViewerScreen.tsx
+ | import "../components/ViewerLoadingOverlay"
+
+ App.tsx
+ | import "./src/screens/ViewerScreen"
+
+ index.ts
+ | import "./App"
+
+ 
+ | import "./index.ts"
+
+Web  ERROR  [UnableToResolveError: Unable to resolve module ../components/ViewerLoadingOverlay from C:\workspace\durumari-app-v2\src\screens\ViewerScreen.tsx: 
+
+None of these files exist:
+  * src\components\ViewerLoadingOverlay(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * src\components\ViewerLoadingOverlay
+   7 | import { ThemedScreen } from "../components/ThemedScreen";
+   8 | import { ViewerBottomSheet } from "../components/ViewerBottomSheet";
+>  9 | import { ViewerLoadingOverlay } from "../components/ViewerLoadingOverlay";
+     |                                       ^
+  10 | import { useAppContext } from "../contexts/AppContext";
+  11 | import { BookmarkRecord, ReadingRecord } from "../types";
+  12 | import { themeTokens } from "../lib/settings";]
+Unable to resolve "../components/ViewerLoadingOverlay" from "src\screens\ViewerScreen.tsx"
+[0m [90m  7 |[39m [36mimport[39m { [33mThemedScreen[39m } [36mfrom[39m [32m"../components/ThemedScreen"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { [33mViewerBottomSheet[39m } [36mfrom[39m [32m"../components/ViewerBottomSheet"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mViewerLoadingOverlay[39m } [36mfrom[39m [32m"../components/ViewerLoadingOverlay"[39m[33m;[39m
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { useAppContext } [36mfrom[39m [32m"../contexts/AppContext"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mBookmarkRecord[39m[33m,[39m [33mReadingRecord[39m } [36mfrom[39m [32m"../types"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { themeTokens } [36mfrom[39m [32m"../lib/settings"[39m[33m;[39m[0m
+
+Import stack:
+
+ src\screens\ViewerScreen.tsx
+ | import "../components/ViewerLoadingOverlay"
+
+ App.tsx
+ | import "./src/screens/ViewerScreen"
+
+ index.ts
+ | import "./App"
+
+ 
+ | import "./index.ts"
+
+Web  ERROR  [UnableToResolveError: Unable to resolve module ../components/ViewerLoadingOverlay from C:\workspace\durumari-app-v2\src\screens\ViewerScreen.tsx: 
+
+None of these files exist:
+  * src\components\ViewerLoadingOverlay(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * src\components\ViewerLoadingOverlay
+   7 | import { ThemedScreen } from "../components/ThemedScreen";
+   8 | import { ViewerBottomSheet } from "../components/ViewerBottomSheet";
+>  9 | import { ViewerLoadingOverlay } from "../components/ViewerLoadingOverlay";
+     |                                       ^
+  10 | import { useAppContext } from "../contexts/AppContext";
+  11 | import { BookmarkRecord, ReadingRecord } from "../types";
+  12 | import { themeTokens } from "../lib/settings";]
+Unable to resolve "../components/ViewerLoadingOverlay" from "src\screens\ViewerScreen.tsx"
+[0m [90m  7 |[39m [36mimport[39m { [33mThemedScreen[39m } [36mfrom[39m [32m"../components/ThemedScreen"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { [33mViewerBottomSheet[39m } [36mfrom[39m [32m"../components/ViewerBottomSheet"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mViewerLoadingOverlay[39m } [36mfrom[39m [32m"../components/ViewerLoadingOverlay"[39m[33m;[39m
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { useAppContext } [36mfrom[39m [32m"../contexts/AppContext"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mBookmarkRecord[39m[33m,[39m [33mReadingRecord[39m } [36mfrom[39m [32m"../types"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { themeTokens } [36mfrom[39m [32m"../lib/settings"[39m[33m;[39m[0m
+
+Import stack:
+
+ src\screens\ViewerScreen.tsx
+ | import "../components/ViewerLoadingOverlay"
+
+ App.tsx
+ | import "./src/screens/ViewerScreen"
+
+ index.ts
+ | import "./App"
+
+ 
+ | import "./index.ts"
+
+Web  ERROR  [UnableToResolveError: Unable to resolve module ../components/ViewerLoadingOverlay from C:\workspace\durumari-app-v2\src\screens\ViewerScreen.tsx: 
+
+None of these files exist:
+  * src\components\ViewerLoadingOverlay(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * src\components\ViewerLoadingOverlay
+   7 | import { ThemedScreen } from "../components/ThemedScreen";
+   8 | import { ViewerBottomSheet } from "../components/ViewerBottomSheet";
+>  9 | import { ViewerLoadingOverlay } from "../components/ViewerLoadingOverlay";
+     |                                       ^
+  10 | import { useAppContext } from "../contexts/AppContext";
+  11 | import { BookmarkRecord, ReadingRecord } from "../types";
+  12 | import { themeTokens } from "../lib/settings";]
+Unable to resolve "../components/ViewerLoadingOverlay" from "src\screens\ViewerScreen.tsx"
+[0m [90m  7 |[39m [36mimport[39m { [33mThemedScreen[39m } [36mfrom[39m [32m"../components/ThemedScreen"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { [33mViewerBottomSheet[39m } [36mfrom[39m [32m"../components/ViewerBottomSheet"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mViewerLoadingOverlay[39m } [36mfrom[39m [32m"../components/ViewerLoadingOverlay"[39m[33m;[39m
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { useAppContext } [36mfrom[39m [32m"../contexts/AppContext"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mBookmarkRecord[39m[33m,[39m [33mReadingRecord[39m } [36mfrom[39m [32m"../types"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { themeTokens } [36mfrom[39m [32m"../lib/settings"[39m[33m;[39m[0m
+
+Import stack:
+
+ src\screens\ViewerScreen.tsx
+ | import "../components/ViewerLoadingOverlay"
+
+ App.tsx
+ | import "./src/screens/ViewerScreen"
+
+ index.ts
+ | import "./App"
+
+ 
+ | import "./index.ts"
+
+Web  ERROR  [UnableToResolveError: Unable to resolve module ../components/ViewerLoadingOverlay from C:\workspace\durumari-app-v2\src\screens\ViewerScreen.tsx: 
+
+None of these files exist:
+  * src\components\ViewerLoadingOverlay(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * src\components\ViewerLoadingOverlay
+   7 | import { ThemedScreen } from "../components/ThemedScreen";
+   8 | import { ViewerBottomSheet } from "../components/ViewerBottomSheet";
+>  9 | import { ViewerLoadingOverlay } from "../components/ViewerLoadingOverlay";
+     |                                       ^
+  10 | import { useAppContext } from "../contexts/AppContext";
+  11 | import { BookmarkRecord, ReadingRecord } from "../types";
+  12 | import { themeTokens } from "../lib/settings";]
+Web Bundling failed 16ms index.ts (1 module)
+Unable to resolve "../components/ViewerLoadingOverlay" from "src\screens\ViewerScreen.tsx"
+[0m [90m  7 |[39m [36mimport[39m { [33mThemedScreen[39m } [36mfrom[39m [32m"../components/ThemedScreen"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { [33mViewerBottomSheet[39m } [36mfrom[39m [32m"../components/ViewerBottomSheet"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mViewerLoadingOverlay[39m } [36mfrom[39m [32m"../components/ViewerLoadingOverlay"[39m[33m;[39m
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m { useAppContext } [36mfrom[39m [32m"../contexts/AppContext"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mBookmarkRecord[39m[33m,[39m [33mReadingRecord[39m } [36mfrom[39m [32m"../types"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { themeTokens } [36mfrom[39m [32m"../lib/settings"[39m[33m;[39m[0m
+
+Import stack:
+
+ src\screens\ViewerScreen.tsx
+ | import "../components/ViewerLoadingOverlay"
+
+ App.tsx
+ | import "./src/screens/ViewerScreen"
+
+ index.ts
+ | import "./App"
+
+ 
+ | import "./index.ts"
+
+Web Bundled 156ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 5ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 17ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 4ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web Bundled 21ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 3ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 16ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 5ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 17ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web Bundled 3ms node_modules\expo-sqlite\web\worker.ts (1 module)
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md

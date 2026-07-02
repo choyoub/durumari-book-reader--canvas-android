@@ -8,12 +8,10 @@ import { ResponsiveFrame } from "../components/ResponsiveFrame";
 import { ThemedScreen } from "../components/ThemedScreen";
 import { ViewerBottomSheet } from "../components/ViewerBottomSheet";
 import { useAppContext } from "../contexts/AppContext";
-import { BookmarkRecord, DocumentRecord, ReadingRecord } from "../types";
+import { BookmarkRecord, ReadingRecord } from "../types";
 import { themeTokens } from "../lib/settings";
-import { toggleBookmark, saveReading, getDocumentText, upsertDocuments, syncBookmarks } from "../lib/store";
-import { hydrateDocumentFromBytes } from "../lib/documentImport";
-import { readSafBytes } from "../lib/safImport";
-import { readWebTestDocumentBytes } from "../lib/testMode";
+import { toggleBookmark, saveReading, syncBookmarks } from "../lib/store";
+import { loadViewerDocument } from "../lib/viewerDocument";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -21,18 +19,6 @@ function clamp(value: number, min: number, max: number) {
 
 function makeBookmarkId(documentId: string, page: number) {
   return `${documentId}:p${page}:${Date.now()}`;
-}
-
-async function loadViewerDocument(document: DocumentRecord, forceEncoding?: string) {
-  if (!forceEncoding) {
-    const stored = await getDocumentText(document.documentId);
-    if (stored.text !== undefined) return { ...document, ...stored };
-  }
-
-  const bytes = await readWebTestDocumentBytes(document.sourceUri) ?? await readSafBytes(document.sourceUri);
-  const hydrated = await hydrateDocumentFromBytes(document, bytes, forceEncoding);
-  await upsertDocuments([hydrated]);
-  return hydrated;
 }
 
 // ----------------- Viewer Modals -----------------
@@ -289,7 +275,17 @@ function EncodingModal({ visible, theme, onClose, onSelect }: any) {
 
 type ViewerModal = "menu" | "encoding" | "toc" | "pageNavigator";
 
-export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function ViewerScreen({
+  onOpenSettings,
+  onInitialReady,
+  onInitialLoadingProgress,
+  suppressInitialLoadingOverlay = false,
+}: {
+  onOpenSettings: () => void;
+  onInitialReady?: () => void;
+  onInitialLoadingProgress?: (payload: { progress: number; message?: string }) => void;
+  suppressInitialLoadingOverlay?: boolean;
+}) {
   const {
     settings,
     activeDocument,
@@ -327,6 +323,18 @@ export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void })
   const [turnRequest, setTurnRequest] = useState<{ signal: number; delta: -1 | 1 }>({ signal: 0, delta: 1 });
   const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const initialReadyNotifiedRef = useRef(false);
+
+  const notifyInitialReady = useCallback(() => {
+    if (initialReadyNotifiedRef.current) return;
+    initialReadyNotifiedRef.current = true;
+    onInitialReady?.();
+  }, [onInitialReady]);
+
+  const notifyInitialLoadingProgress = useCallback((payload: { progress: number; message?: string }) => {
+    if (initialReadyNotifiedRef.current) return;
+    onInitialLoadingProgress?.(payload);
+  }, [onInitialLoadingProgress]);
 
   const closeTopViewerLayer = useCallback(() => {
     if (activeModal) {
@@ -358,6 +366,7 @@ export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void })
     viewerHasLoadedRef.current = false;
     setViewerReady(false);
     setViewerLoading({ active: true, progress: 0, message: "본문을 불러오는 중..." });
+    notifyInitialLoadingProgress({ progress: 0, message: "본문을 불러오는 중..." });
     void loadViewerDocument(document)
       .then((hydrated) => {
         if (cancelled) return;
@@ -512,6 +521,7 @@ export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void })
                       message: "준비 완료",
                       error: undefined,
                     }));
+                    notifyInitialReady();
                   }}
                   onPageChanged={onPageChanged}
                   onBookmarkChanged={onBookmarkChanged}
@@ -519,16 +529,21 @@ export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void })
                   onBookmarksSynced={onBookmarksSynced}
                   onMenuRequested={() => setActiveModal("menu")}
                   onBackRequested={closeTopViewerLayer}
-                  onLoadingProgress={(payload) => setViewerLoading((previous) => ({
-                    ...previous,
-                    active: !viewerHasLoadedRef.current,
-                    progress: payload.progress,
-                    message: payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`,
-                    error: undefined,
-                  }))}
+                  onLoadingProgress={(payload) => {
+                    const message = payload.message ?? `전체 페이지를 계산하는 중... ${Math.round(payload.progress * 100)}%`;
+                    notifyInitialLoadingProgress({ progress: payload.progress, message });
+                    setViewerLoading((previous) => ({
+                      ...previous,
+                      active: !viewerHasLoadedRef.current,
+                      progress: payload.progress,
+                      message,
+                      error: undefined,
+                    }));
+                  }}
                   onError={(payload) => {
                     setViewerReady(false);
                     setViewerLoading((prev) => ({ ...prev, active: true, error: payload }));
+                    notifyInitialReady();
                   }}
                   bookmarkSignal={bookmarkSignal}
                   pageRequest={pageRequest}
@@ -537,7 +552,7 @@ export function ViewerScreen({ onOpenSettings }: { onOpenSettings: () => void })
                 />
               ) : null}
 
-              {viewerLoading.active ? (
+              {viewerLoading.active && !suppressInitialLoadingOverlay ? (
                 <ViewerLoadingOverlay
                   theme={theme}
                   progress={viewerLoading.progress}

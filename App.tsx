@@ -12,12 +12,23 @@ import { MainTabPager } from "./src/components/MainTabPager";
 import { ResponsiveFrame } from "./src/components/ResponsiveFrame";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { ThemedScreen } from "./src/components/ThemedScreen";
-import { ViewerScreen } from "./src/screens/ViewerScreen";
+import { ViewerRestoreLoader } from "./src/components/ViewerRestoreLoader";
 import { defaultSettings, resolveActiveFolderId, themeTokens } from "./src/lib/settings";
 import { configureNativeTextDefaults } from "./src/lib/nativeText";
 import { subscribeForegroundRescan } from "./src/lib/safImport";
-import { clearFolders, initStore, listFolders, loadSettings, saveSettings } from "./src/lib/store";
+import {
+  clearFolders,
+  clearLastViewerSession,
+  initStore,
+  listDocuments,
+  listFolders,
+  listReadings,
+  loadLastViewerSession,
+  loadSettings,
+  saveSettings,
+} from "./src/lib/store";
 import { seedWebTestLibrary } from "./src/lib/testMode";
+import { loadViewerDocument } from "./src/lib/viewerDocument";
 
 const MAIN_TABS: readonly TabName[] = ["library", "history", "bookmarks"];
 const BACKGROUND_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
@@ -90,10 +101,13 @@ function AppContent() {
     activeFolderId,
     refresh,
     rescanFolders,
+    upsertReadingState,
   } = useAppContext();
 
   const [booting, setBooting] = useState(true);
   const [bootReady, setBootReady] = useState(false);
+  const [bootRestoredViewer, setBootRestoredViewer] = useState(false);
+  const [bootViewerReady, setBootViewerReady] = useState(false);
   const [introAnimationComplete, setIntroAnimationComplete] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingText, setLoadingText] = useState("앱 초기화 중...");
@@ -169,8 +183,41 @@ function AppContent() {
       });
       if (!mounted) return;
       if (introFolderId) lastFolderSyncAtRef.current.set(introFolderId, Date.now());
-      setLoadingProgress(1);
-      setLoadingText("준비 완료!");
+      setLoadingProgress(0.96);
+      setLoadingText("마지막으로 읽던 문서를 확인하는 중...");
+      const lastViewerSession = await loadLastViewerSession();
+      let restoredViewer = false;
+      if (lastViewerSession) {
+        const documentRows = await listDocuments();
+        const restoreDocument = documentRows.find((document) => document.documentId === lastViewerSession.documentId);
+        if (!restoreDocument) {
+          await clearLastViewerSession();
+        } else {
+          try {
+            setLoadingProgress(0.97);
+            setLoadingText(`${restoreDocument.title} 불러오는 중...`);
+            const [hydratedDocument, readingRows] = await Promise.all([
+              loadViewerDocument(restoreDocument),
+              listReadings(),
+            ]);
+            if (!mounted) return;
+            const activeReading = readingRows.find((reading) => reading.documentId === hydratedDocument.documentId);
+            if (activeReading) upsertReadingState(activeReading);
+            restoredViewer = true;
+            setBootRestoredViewer(true);
+            setBootViewerReady(false);
+            setActiveDocument(hydratedDocument);
+          } catch (error) {
+            console.warn("Failed to restore last viewer session", error);
+            await clearLastViewerSession();
+          }
+        }
+      }
+      if (!mounted) return;
+      if (!restoredViewer) {
+        setLoadingProgress(1);
+        setLoadingText("준비 완료!");
+      }
       setBootReady(true);
     }
     void boot().catch((error) => {
@@ -180,11 +227,16 @@ function AppContent() {
     return () => {
       mounted = false;
     };
-  }, [rescanFolders, setSettings, setDraftSettings]);
+  }, [rescanFolders, setActiveDocument, setSettings, setDraftSettings, upsertReadingState]);
 
   useEffect(() => {
-    if (bootReady && introAnimationComplete) setBooting(false);
-  }, [bootReady, introAnimationComplete]);
+    if (!bootReady) return;
+    if (bootRestoredViewer) {
+      if (bootViewerReady) setBooting(false);
+      return;
+    }
+    if (introAnimationComplete) setBooting(false);
+  }, [bootReady, bootRestoredViewer, bootViewerReady, introAnimationComplete]);
 
   useEffect(() => {
     if (booting) return;
@@ -265,16 +317,54 @@ function AppContent() {
     ]);
   }
 
-  if (booting) {
+  if (booting || activeDocument) {
     return (
       <>
         <NavigationBar.NavigationBar style="light" />
         <StatusBar style="light" />
-        <IntroScroll
-          progress={loadingProgress}
-          statusText={loadingText}
-          onAnimationComplete={() => setIntroAnimationComplete(true)}
-        />
+        <View style={styles.bootRoot}>
+          <View style={styles.bootContent}>
+            {activeDocument ? (
+              <ViewerRestoreLoader
+                active={booting && bootRestoredViewer}
+                onOpenSettings={() => {
+                  setDraftSettings(settings);
+                  setSettingsOpen(true);
+                }}
+                onReady={() => {
+                  setLoadingProgress(1);
+                  setLoadingText("준비 완료!");
+                  setBootViewerReady(true);
+                }}
+                onLoadingProgress={(payload) => {
+                  setLoadingProgress(0.97 + Math.max(0, Math.min(1, payload.progress)) * 0.03);
+                  setLoadingText(payload.message ?? "전체 페이지를 계산하는 중...");
+                }}
+              />
+            ) : null}
+          </View>
+          {booting ? (
+            <View style={styles.bootIntroOverlay}>
+              <IntroScroll
+                progress={loadingProgress}
+                statusText={loadingText}
+                onAnimationComplete={() => setIntroAnimationComplete(true)}
+              />
+            </View>
+          ) : null}
+          {activeDocument ? (
+            <SettingsModal
+              visible={settingsOpen}
+              settings={draftSettings}
+              theme={screenTheme}
+              onChange={setDraftSettings}
+              onClose={() => setSettingsOpen(false)}
+              onConfirm={confirmSettings}
+              onReset={askResetSettings}
+              onClearFolders={askClearFolders}
+            />
+          ) : null}
+        </View>
       </>
     );
   }
@@ -296,29 +386,6 @@ function AppContent() {
           />
         </ResponsiveFrame>
       </ThemedScreen>
-    );
-  }
-
-  if (activeDocument) {
-    return (
-      <>
-        <ViewerScreen
-          onOpenSettings={() => {
-            setDraftSettings(settings);
-            setSettingsOpen(true);
-          }}
-        />
-        <SettingsModal
-          visible={settingsOpen}
-          settings={draftSettings}
-          theme={screenTheme}
-          onChange={setDraftSettings}
-          onClose={() => setSettingsOpen(false)}
-          onConfirm={confirmSettings}
-          onReset={askResetSettings}
-          onClearFolders={askClearFolders}
-        />
-      </>
     );
   }
 
@@ -374,6 +441,9 @@ export default function App() {
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
+  bootRoot: { flex: 1 },
+  bootContent: { flex: 1 },
+  bootIntroOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   smallButton: { width: 44, height: 44, borderWidth: 1, alignItems: "center", justifyContent: "center", borderRadius: 14 },
   smallButtonText: { fontSize: 19, fontWeight: "800" },
   tabsWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 12 },

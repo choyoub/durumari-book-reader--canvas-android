@@ -17,7 +17,9 @@ import {
   listReadings, 
   listBookmarks, 
   replaceFolderDocuments,
-  saveSettings
+  saveSettings,
+  saveLastViewerSession,
+  clearLastViewerSession
 } from '../lib/store';
 import { rescanSafFolders } from '../lib/safImport';
 
@@ -85,12 +87,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveDocument: React.Dispatch<React.SetStateAction<DocumentRecord | null>> = useCallback((next) => {
     setActiveViewerTarget(null);
-    setActiveDocumentState(next);
+    setActiveDocumentState((current) => {
+      const resolved = typeof next === 'function' ? next(current) : next;
+      if (resolved) void saveLastViewerSession(resolved.documentId);
+      else void clearLastViewerSession();
+      return resolved;
+    });
   }, []);
 
   const openDocument = useCallback((document: DocumentRecord, target?: ViewerOpenTarget | null) => {
     setActiveViewerTarget(target ?? null);
     setActiveDocumentState(document);
+    void saveLastViewerSession(document.documentId);
   }, []);
 
   const setActiveFolderId = useCallback((folderId: string | null) => {

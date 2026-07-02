@@ -114,11 +114,11 @@ export function BookmarksScreen({ search, onSearchChange }: { search: string; on
 
 const styles = StyleSheet.create({
   content: { flex: 1 },
-  sortBar: { minHeight: 58, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
-  searchBox: { flex: 1, flexBasis: 260, minWidth: 180, minHeight: 42, borderWidth: 1, paddingHorizontal: 10, alignItems: "center", flexDirection: "row", borderRadius: 21 },
+  sortBar: { minHeight: 58, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { flex: 1, minWidth: 0, minHeight: 42, borderWidth: 1, paddingHorizontal: 10, alignItems: "center", flexDirection: "row", borderRadius: 21 },
   searchIcon: { width: 22, fontSize: 16, lineHeight: 20, marginRight: 6, textAlign: "center" },
   searchInput: { flex: 1, minWidth: 0, fontSize: 14, paddingVertical: 0 },
-  sortGroup: { width: 210, minHeight: 42, flexShrink: 0, borderWidth: 1, borderRadius: 21, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
+  sortGroup: { width: 156, minHeight: 42, flexShrink: 0, borderWidth: 1, borderRadius: 21, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
   sortSegment: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center" },
   sortSegmentFirst: { borderTopLeftRadius: 17, borderBottomLeftRadius: 17 },
   sortSegmentMiddle: { borderLeftWidth: StyleSheet.hairlineWidth },
