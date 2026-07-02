@@ -1,6 +1,7 @@
 export type BookKind = "txt" | "epub" | "zip" | "gz";
 export type ReadingStatus = "unread" | "reading" | "completed";
 export type ThemeName = "light" | "dark" | "paper" | "chalk";
+export type TextEncodingSource = "auto" | "manual";
 
 export interface SortConfig {
   column: string;
@@ -53,6 +54,9 @@ export interface DocumentRecord {
   contentHash: string;
   text?: string;
   toc?: { label: string; href: string; charOffset: number }[];
+  textEncoding?: string;
+  textEncodingSource?: TextEncodingSource;
+  detectedTextEncoding?: string;
 }
 
 export interface ReadingRecord {

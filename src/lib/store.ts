@@ -71,6 +71,9 @@ export async function initStore() {
       modifiedAt INTEGER NOT NULL,
       contentHash TEXT NOT NULL,
       text TEXT,
+      textEncoding TEXT,
+      textEncodingSource TEXT,
+      detectedTextEncoding TEXT,
       FOREIGN KEY(folderId) REFERENCES folders(folderId) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS readings (
@@ -97,6 +100,9 @@ export async function initStore() {
     );
   `);
   try { await database.execAsync("ALTER TABLE documents ADD COLUMN toc TEXT;"); } catch {}
+  try { await database.execAsync("ALTER TABLE documents ADD COLUMN textEncoding TEXT;"); } catch {}
+  try { await database.execAsync("ALTER TABLE documents ADD COLUMN textEncodingSource TEXT;"); } catch {}
+  try { await database.execAsync("ALTER TABLE documents ADD COLUMN detectedTextEncoding TEXT;"); } catch {}
   try { await database.execAsync("ALTER TABLE readings ADD COLUMN anchorOffset INTEGER;"); } catch {}
   try { await database.execAsync("ALTER TABLE bookmarks ADD COLUMN anchorOffset INTEGER;"); } catch {}
 }
@@ -169,8 +175,8 @@ export async function upsertDocuments(documents: DocumentRecord[]) {
     for (const document of documents) {
       await transaction.runAsync(
         `INSERT INTO documents
-          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc, textEncoding, textEncodingSource, detectedTextEncoding)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(documentId) DO UPDATE SET
             folderId = excluded.folderId,
             sourceUri = excluded.sourceUri,
@@ -181,7 +187,10 @@ export async function upsertDocuments(documents: DocumentRecord[]) {
             modifiedAt = CASE WHEN excluded.modifiedAt > 0 THEN excluded.modifiedAt ELSE documents.modifiedAt END,
             contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
             text = COALESCE(excluded.text, documents.text),
-            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
+            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END,
+            textEncoding = CASE WHEN excluded.text IS NOT NULL THEN excluded.textEncoding ELSE documents.textEncoding END,
+            textEncodingSource = CASE WHEN excluded.text IS NOT NULL THEN excluded.textEncodingSource ELSE documents.textEncodingSource END,
+            detectedTextEncoding = CASE WHEN excluded.text IS NOT NULL THEN excluded.detectedTextEncoding ELSE documents.detectedTextEncoding END`,
         document.documentId,
         document.folderId,
         document.sourceUri,
@@ -193,6 +202,9 @@ export async function upsertDocuments(documents: DocumentRecord[]) {
         document.contentHash,
         document.text ?? null,
         document.toc ? JSON.stringify(document.toc) : null,
+        document.textEncoding ?? null,
+        document.textEncodingSource ?? null,
+        document.detectedTextEncoding ?? null,
       );
     }
   });
@@ -242,8 +254,8 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
       }
       await transaction.runAsync(
         `INSERT INTO documents
-          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, text, toc, textEncoding, textEncodingSource, detectedTextEncoding)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(documentId) DO UPDATE SET
             folderId = excluded.folderId,
             sourceUri = excluded.sourceUri,
@@ -254,7 +266,10 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
             modifiedAt = CASE WHEN excluded.modifiedAt > 0 THEN excluded.modifiedAt ELSE documents.modifiedAt END,
             contentHash = CASE WHEN excluded.text IS NOT NULL THEN excluded.contentHash ELSE documents.contentHash END,
             text = COALESCE(excluded.text, documents.text),
-            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END`,
+            toc = CASE WHEN excluded.text IS NOT NULL THEN excluded.toc ELSE documents.toc END,
+            textEncoding = CASE WHEN excluded.text IS NOT NULL THEN excluded.textEncoding ELSE documents.textEncoding END,
+            textEncodingSource = CASE WHEN excluded.text IS NOT NULL THEN excluded.textEncodingSource ELSE documents.textEncodingSource END,
+            detectedTextEncoding = CASE WHEN excluded.text IS NOT NULL THEN excluded.detectedTextEncoding ELSE documents.detectedTextEncoding END`,
         document.documentId,
         document.folderId,
         document.sourceUri,
@@ -266,6 +281,9 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         document.contentHash,
         document.text ?? null,
         document.toc ? JSON.stringify(document.toc) : null,
+        document.textEncoding ?? null,
+        document.textEncodingSource ?? null,
+        document.detectedTextEncoding ?? null,
       );
     }
     const existingByHash = new Map<string, typeof existing>();
@@ -290,12 +308,18 @@ export async function replaceFolderDocuments(folder: FolderRecord, documents: Do
         `UPDATE documents
           SET text = COALESCE(documents.text, (SELECT text FROM documents WHERE documentId = ?)),
               toc = COALESCE(documents.toc, (SELECT toc FROM documents WHERE documentId = ?)),
+              textEncoding = COALESCE(documents.textEncoding, (SELECT textEncoding FROM documents WHERE documentId = ?)),
+              textEncodingSource = COALESCE(documents.textEncodingSource, (SELECT textEncodingSource FROM documents WHERE documentId = ?)),
+              detectedTextEncoding = COALESCE(documents.detectedTextEncoding, (SELECT detectedTextEncoding FROM documents WHERE documentId = ?)),
               modifiedAt = CASE WHEN ? > 0 THEN ? ELSE documents.modifiedAt END,
               fileSize = CASE
                 WHEN documents.fileSize > 0 THEN documents.fileSize
                 ELSE COALESCE((SELECT fileSize FROM documents WHERE documentId = ?), documents.fileSize)
               END
           WHERE documentId = ?`,
+        match.documentId,
+        match.documentId,
+        match.documentId,
         match.documentId,
         match.documentId,
         document.modifiedAt,
@@ -327,7 +351,7 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
   const database = await db();
   // Exclude text column to prevent OOM with large libraries
   const rows = await database.getAllAsync<any>(
-    "SELECT documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, toc FROM documents ORDER BY modifiedAt DESC"
+    "SELECT documentId, folderId, sourceUri, archiveEntryPath, title, kind, fileSize, modifiedAt, contentHash, toc, textEncoding, textEncodingSource, detectedTextEncoding FROM documents ORDER BY modifiedAt DESC"
   );
   return rows.map((row) => ({
     ...row,
@@ -336,16 +360,25 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
 }
 
 /** Load full document text on demand (when entering viewer) */
-export async function getDocumentText(documentId: string): Promise<{ text?: string; toc?: any }> {
+export async function getDocumentText(documentId: string): Promise<{
+  text?: string;
+  toc?: any;
+  textEncoding?: string;
+  textEncodingSource?: "auto" | "manual";
+  detectedTextEncoding?: string;
+}> {
   const database = await db();
-  const row = await database.getFirstAsync<{ text: string | null; toc: string | null }>(
-    "SELECT text, toc FROM documents WHERE documentId = ?",
+  const row = await database.getFirstAsync<{ text: string | null; toc: string | null; textEncoding: string | null; textEncodingSource: "auto" | "manual" | null; detectedTextEncoding: string | null }>(
+    "SELECT text, toc, textEncoding, textEncodingSource, detectedTextEncoding FROM documents WHERE documentId = ?",
     documentId,
   );
   if (!row) return {};
   return {
     text: row.text ?? undefined,
     toc: row.toc ? JSON.parse(row.toc) : undefined,
+    textEncoding: row.textEncoding ?? undefined,
+    textEncodingSource: row.textEncodingSource ?? undefined,
+    detectedTextEncoding: row.detectedTextEncoding ?? undefined,
   };
 }
 

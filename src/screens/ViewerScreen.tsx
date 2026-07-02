@@ -21,6 +21,20 @@ function makeBookmarkId(documentId: string, page: number) {
   return `${documentId}:p${page}:${Date.now()}`;
 }
 
+const encodingOptions = ["utf8", "euc-kr", "cp949", "utf16-le", "utf16-be"];
+
+function formatEncoding(encoding?: string) {
+  if (!encoding) return "알 수 없음";
+  if (encoding === "not-applicable") return "해당 없음";
+  if (encoding === "mixed") return "여러 인코딩";
+  if (encoding === "utf8-bom") return "UTF-8 BOM";
+  return encoding.toUpperCase();
+}
+
+function encodingChoiceKey(encoding?: string) {
+  return encoding === "utf8-bom" ? "utf8" : encoding;
+}
+
 // ----------------- Viewer Modals -----------------
 
 function ViewerMenuModal({
@@ -249,23 +263,40 @@ function PageNavigatorModal({ visible, current, total, value, bookmarks, theme, 
   );
 }
 
-function EncodingModal({ visible, theme, onClose, onSelect }: any) {
+function EncodingModal({ visible, theme, currentEncoding, detectedEncoding, onClose, onSelect }: any) {
+  const subtitle = `원본 : ${formatEncoding(detectedEncoding)}`;
   return (
     <ViewerBottomSheet
       visible={visible}
       theme={theme}
-      title="인코딩 다시 선택"
-      subtitle="본문이 깨질 때만 변경하세요"
+      title="인코딩 선택"
+      subtitle={subtitle}
       closeAccessibilityLabel="인코딩 선택 닫기"
       dragAccessibilityLabel="아래로 스와이프해서 인코딩 선택 닫기"
       onClose={onClose}
     >
       <View style={styles.encodingGrid}>
-        {["utf8", "euc-kr", "cp949", "utf16-le", "utf16-be"].map((enc) => (
-          <Pressable key={enc} style={[styles.encodingOption, { borderColor: theme.border, backgroundColor: theme.bg }]} onPress={() => onSelect(enc)}>
-            <Text style={[styles.encodingOptionText, { color: theme.text }]}>{enc.toUpperCase()}</Text>
-          </Pressable>
-        ))}
+        {encodingOptions.map((enc) => {
+          const active = encodingChoiceKey(currentEncoding) === enc;
+          return (
+            <Pressable
+              key={enc}
+              style={[
+                styles.encodingOption,
+                {
+                  borderColor: active ? theme.accent : theme.border,
+                  backgroundColor: active ? theme.card : theme.bg,
+                  opacity: active ? 0.62 : 1,
+                },
+              ]}
+              disabled={active}
+              accessibilityState={{ selected: active, disabled: active }}
+              onPress={() => onSelect(enc)}
+            >
+              <Text style={[styles.encodingOptionText, { color: active ? theme.accentText : theme.text }]}>{enc.toUpperCase()}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </ViewerBottomSheet>
   );
@@ -323,6 +354,7 @@ export function ViewerScreen({
   const [turnRequest, setTurnRequest] = useState<{ signal: number; delta: -1 | 1 }>({ signal: 0, delta: 1 });
   const [offsetRequest, setOffsetRequest] = useState<{ signal: number; offset: number }>({ signal: 0, offset: 0 });
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [viewerReloadSignal, setViewerReloadSignal] = useState(0);
   const initialReadyNotifiedRef = useRef(false);
 
   const notifyInitialReady = useCallback(() => {
@@ -360,7 +392,14 @@ export function ViewerScreen({
 
   useEffect(() => {
     const document = activeDocument;
-    if (!document || document.text !== undefined) return;
+    if (!document) return;
+    const needsText = document.text === undefined;
+    const needsEncodingMetadata = (
+      document.text !== undefined
+      && (document.kind === "txt" || document.kind === "gz" || document.kind === "zip")
+      && (!document.textEncoding || !document.detectedTextEncoding)
+    );
+    if (!needsText && !needsEncodingMetadata) return;
 
     let cancelled = false;
     viewerHasLoadedRef.current = false;
@@ -472,6 +511,7 @@ export function ViewerScreen({
 
   async function changeEncoding(encoding: string) {
     if (!activeDocument) return;
+    if (encodingChoiceKey(activeDocument.textEncoding) === encoding) return;
     setActiveModal(null);
     viewerHasLoadedRef.current = false;
     setViewerReady(false);
@@ -480,6 +520,7 @@ export function ViewerScreen({
       const newDoc = await loadViewerDocument(activeDocument, encoding);
       await refresh();
       setActiveDocument(newDoc);
+      setViewerReloadSignal((signal) => signal + 1);
     } catch (error) {
       setViewerLoading((prev) => ({ ...prev, active: true, error: { code: "ENCODING_FAILED", message: error instanceof Error ? error.message : "인코딩 재적용에 실패했습니다." } }));
     }
@@ -503,7 +544,7 @@ export function ViewerScreen({
             >
               {activeDocument.text ? (
                 <CanvasReader
-                  key={activeDocument.documentId}
+                  key={`${activeDocument.documentId}:${activeDocument.textEncoding ?? ""}:${activeDocument.textEncodingSource ?? ""}:${viewerReloadSignal}`}
                   document={activeDocument}
                   settings={settings}
                   initialPage={initialPage}
@@ -610,6 +651,8 @@ export function ViewerScreen({
           <EncodingModal
             visible
             theme={theme}
+            currentEncoding={activeDocument.textEncoding}
+            detectedEncoding={activeDocument.detectedTextEncoding}
             onClose={closeTopViewerLayer}
             onSelect={changeEncoding}
           />
@@ -682,6 +725,6 @@ const styles = StyleSheet.create({
   primaryButton: { height: 48, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   accentButtonText: { fontWeight: "700", fontSize: 16 },
   encodingGrid: { gap: 8 },
-  encodingOption: { minHeight: 46, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  encodingOption: { minHeight: 52, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 3 },
   encodingOptionText: { fontSize: 15, fontWeight: "800" },
 });

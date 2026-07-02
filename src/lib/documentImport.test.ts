@@ -18,6 +18,9 @@ describe("documentImport", () => {
     const doc = await documentFromBytes(input("test.txt", new Uint8Array(buffer)));
     expect(doc.title).toBe("test");
     expect(doc.text).toBe(text);
+    expect(doc.textEncoding).toBe("utf8");
+    expect(doc.textEncodingSource).toBe("auto");
+    expect(doc.detectedTextEncoding).toBe("utf8");
   });
 
   it("should handle EUC-KR encoding for txt files", async () => {
@@ -26,6 +29,28 @@ describe("documentImport", () => {
     const doc = await documentFromBytes(input("euc.txt", new Uint8Array(buffer), "euc-kr"));
     expect(doc.title).toBe("euc");
     expect(doc.text).toBe(text);
+    expect(doc.textEncoding).toBe("euc-kr");
+    expect(doc.textEncodingSource).toBe("auto");
+    expect(doc.detectedTextEncoding).toBe("euc-kr");
+  });
+
+  it("should keep manual source when forced encoding differs from detected encoding", async () => {
+    const text = "UTF-8 강제 변경 테스트";
+    const buffer = Buffer.from(text, "utf-8");
+    const doc = await documentFromBytes(input("forced.txt", new Uint8Array(buffer), "cp949"));
+    expect(doc.textEncoding).toBe("cp949");
+    expect(doc.textEncodingSource).toBe("manual");
+    expect(doc.detectedTextEncoding).toBe("utf8");
+  });
+
+  it("should store automatically detected UTF-16 encoding", async () => {
+    const text = "UTF-16 테스트";
+    const buffer = Buffer.concat([Buffer.from([0xff, 0xfe]), iconv.encode(text, "utf16-le")]);
+    const doc = await documentFromBytes(input("utf16.txt", new Uint8Array(buffer)));
+    expect(doc.text).toBe(text);
+    expect(doc.textEncoding).toBe("utf16-le");
+    expect(doc.textEncodingSource).toBe("auto");
+    expect(doc.detectedTextEncoding).toBe("utf16-le");
   });
 
   it("should fail gracefully for unsupported extensions", async () => {

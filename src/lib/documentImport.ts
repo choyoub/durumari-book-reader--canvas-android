@@ -27,30 +27,76 @@ function stripExtension(name: string) {
   return name.replace(/\.(txt|epub|zip|gz)$/i, "");
 }
 
-function decodeText(bytes: Uint8Array, forceEncoding?: string) {
-  if (forceEncoding) {
-    try {
-      if (forceEncoding === "utf8") return Buffer.from(bytes).toString("utf8");
-      return iconv.decode(Buffer.from(bytes), forceEncoding);
-    } catch {
-      // Ignore and fallback to auto-detection
-    }
-  }
+type DecodedText = {
+  text: string;
+  encoding: string;
+  encodingSource: "auto" | "manual";
+  detectedEncoding: string;
+};
+
+function normalizeEncoding(encoding: string) {
+  return encoding.toLowerCase().replace(/^utf-8$/, "utf8");
+}
+
+function equivalentEncodingKey(encoding?: string) {
+  return normalizeEncoding(encoding ?? "").replace(/^utf8-bom$/, "utf8");
+}
+
+function sameEncoding(left?: string, right?: string) {
+  return equivalentEncodingKey(left) === equivalentEncodingKey(right);
+}
+
+function autoDecodeText(bytes: Uint8Array): DecodedText {
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return Buffer.from(bytes.slice(3)).toString("utf8");
+    return { text: Buffer.from(bytes.slice(3)).toString("utf8"), encoding: "utf8-bom", encodingSource: "auto", detectedEncoding: "utf8-bom" };
   }
-  if (bytes[0] === 0xff && bytes[1] === 0xfe) return iconv.decode(Buffer.from(bytes.slice(2)), "utf16-le");
-  if (bytes[0] === 0xfe && bytes[1] === 0xff) return iconv.decode(Buffer.from(bytes.slice(2)), "utf16-be");
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { text: iconv.decode(Buffer.from(bytes.slice(2)), "utf16-le"), encoding: "utf16-le", encodingSource: "auto", detectedEncoding: "utf16-le" };
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { text: iconv.decode(Buffer.from(bytes.slice(2)), "utf16-be"), encoding: "utf16-be", encodingSource: "auto", detectedEncoding: "utf16-be" };
+  }
 
   for (const encoding of ["utf8", "euc-kr", "cp949"]) {
     try {
       const text = iconv.decode(Buffer.from(bytes), encoding);
-      if (text && !text.includes("\uFFFD")) return text;
+      if (text && !text.includes("\uFFFD")) return { text, encoding, encodingSource: "auto", detectedEncoding: encoding };
     } catch {
       // Try the next encoding.
     }
   }
-  return Buffer.from(bytes).toString("utf8");
+  return { text: Buffer.from(bytes).toString("utf8"), encoding: "utf8", encodingSource: "auto", detectedEncoding: "utf8" };
+}
+
+function decodeText(bytes: Uint8Array, forceEncoding?: string): DecodedText {
+  const autoDecoded = autoDecodeText(bytes);
+  if (!forceEncoding) return autoDecoded;
+
+  const normalized = normalizeEncoding(forceEncoding);
+  if (sameEncoding(normalized, autoDecoded.detectedEncoding)) return autoDecoded;
+
+  try {
+    if (normalized === "utf8") {
+      return {
+        text: Buffer.from(bytes).toString("utf8"),
+        encoding: "utf8",
+        encodingSource: "manual",
+        detectedEncoding: autoDecoded.detectedEncoding,
+      };
+    }
+    return {
+      text: iconv.decode(Buffer.from(bytes), normalized),
+      encoding: normalized,
+      encodingSource: "manual",
+      detectedEncoding: autoDecoded.detectedEncoding,
+    };
+  } catch {
+    return autoDecoded;
+  }
+}
+
+function noTextEncoding() {
+  return { textEncoding: "not-applicable", detectedTextEncoding: "not-applicable" };
 }
 
 function hashBytes(bytes: Uint8Array) {
@@ -247,6 +293,9 @@ export async function hydrateDocumentFromBytes(
     contentHash: parsed.contentHash,
     text: parsed.text,
     toc: parsed.toc,
+    textEncoding: parsed.textEncoding,
+    textEncodingSource: parsed.textEncodingSource,
+    detectedTextEncoding: parsed.detectedTextEncoding,
   };
 }
 
@@ -265,6 +314,9 @@ async function textFromZip(bytes: Uint8Array, forceEncoding?: string) {
     .sort((a, b) => a.name.localeCompare(b.name, "ko", { numeric: true }));
   if (!entries.length) throw new Error("압축 파일 안에 지원 문서가 없습니다.");
   const parts: string[] = [];
+  const encodings = new Set<string>();
+  const detectedEncodings = new Set<string>();
+  let encodingSource: "auto" | "manual" | undefined;
   let inflated = 0;
   for (const entry of entries) {
     const content = await entry.async("uint8array");
@@ -276,21 +328,46 @@ async function textFromZip(bytes: Uint8Array, forceEncoding?: string) {
       parts.push(`\n\n${entry.name}\n\n${(await textFromEpub(content)).text}`);
       continue;
     }
-    parts.push(entries.length > 1 ? `\n\n${entry.name}\n\n${decodeText(content, forceEncoding)}` : decodeText(content, forceEncoding));
+    const decoded = decodeText(content, forceEncoding);
+    encodings.add(decoded.encoding);
+    detectedEncodings.add(decoded.detectedEncoding);
+    encodingSource = encodingSource === "manual" || decoded.encodingSource === "manual" ? "manual" : "auto";
+    parts.push(entries.length > 1 ? `\n\n${entry.name}\n\n${decoded.text}` : decoded.text);
   }
-  return parts.join("\n");
+  const textEncoding = encodings.size === 1 ? Array.from(encodings)[0] : encodings.size > 1 ? "mixed" : noTextEncoding().textEncoding;
+  const detectedTextEncoding = detectedEncodings.size === 1 ? Array.from(detectedEncodings)[0] : detectedEncodings.size > 1 ? "mixed" : noTextEncoding().detectedTextEncoding;
+  return {
+    text: parts.join("\n"),
+    textEncoding,
+    textEncodingSource: sameEncoding(textEncoding, detectedTextEncoding) ? "auto" : encodingSource,
+    detectedTextEncoding,
+  };
 }
 
-async function extractText(kind: BookKind, bytes: Uint8Array, forceEncoding?: string): Promise<{ text: string; toc?: { label: string; href: string; charOffset: number }[] }> {
+async function extractText(kind: BookKind, bytes: Uint8Array, forceEncoding?: string): Promise<{ text: string; toc?: { label: string; href: string; charOffset: number }[]; textEncoding?: string; textEncodingSource?: "auto" | "manual"; detectedTextEncoding?: string }> {
   if (bytes.byteLength > MAX_SOURCE_BYTES) throw new Error("파일 가져오기 한도(100MB)를 초과했습니다.");
-  if (kind === "txt") return { text: decodeText(bytes, forceEncoding) };
+  if (kind === "txt") {
+    const decoded = decodeText(bytes, forceEncoding);
+    return {
+      text: decoded.text,
+      textEncoding: decoded.encoding,
+      textEncodingSource: decoded.encodingSource,
+      detectedTextEncoding: decoded.detectedEncoding,
+    };
+  }
   if (kind === "gz") {
     const inflated = ungzip(bytes);
     if (inflated.byteLength > MAX_INFLATED_BYTES) throw new Error("압축 해제 한도(500MB)를 초과했습니다.");
-    return { text: decodeText(inflated, forceEncoding) };
+    const decoded = decodeText(inflated, forceEncoding);
+    return {
+      text: decoded.text,
+      textEncoding: decoded.encoding,
+      textEncodingSource: decoded.encodingSource,
+      detectedTextEncoding: decoded.detectedEncoding,
+    };
   }
-  if (kind === "zip") return { text: await textFromZip(bytes, forceEncoding) };
-  return textFromEpub(bytes);
+  if (kind === "zip") return textFromZip(bytes, forceEncoding);
+  return { ...await textFromEpub(bytes), ...noTextEncoding() };
 }
 
 export async function pickDocuments(): Promise<{ folder: FolderRecord; documents: DocumentRecord[] } | null> {
